@@ -1,0 +1,15 @@
+# Visual Studio / VS Code temporary files
+.vs/
+.vscode/
+*.user
+*.userosscache
+*.sln.docstates
+
+# Build outputs
+[Bb]in/
+[Ob]bj/
+out/
+
+# Logs and databases
+*.log
+*.sqlite
