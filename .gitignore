@@ -13,3 +13,7 @@ out/
 # Logs and databases
 *.log
 *.sqlite
+
+# .NET Core build folders
+[Bb]in/
+[Oo]bj/
