@@ -1,4 +1,12 @@
-﻿var builder = WebApplication.CreateBuilder(args);
+﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
+using MongoDB.Driver;
+using Microsoft.Extensions.Options;
+using System.Text;
+
+
+var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllers();
@@ -14,7 +22,6 @@ builder.Services.AddSingleton<IMongoClient>(sp =>
     var settings = sp.GetRequiredService<IOptions<MongoDbSettings>>().Value;
     return new MongoClient(settings.ConnectionString);
 });
-
 builder.Services.AddSingleton(sp =>
 {
     var settings = sp.GetRequiredService<IOptions<MongoDbSettings>>().Value;
@@ -41,7 +48,6 @@ builder.Services.AddHttpClient<IAiChatService, AiChatService>();
 // JWT Authentication Configuration
 var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>() ?? new JwtSettings();
 var keyBytes = Encoding.UTF8.GetBytes(jwtSettings.SecretKey);
-
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -63,7 +69,6 @@ builder.Services.AddAuthentication(options =>
         ClockSkew = TimeSpan.Zero
     };
 });
-
 builder.Services.AddAuthorization();
 
 // Swagger Setup
@@ -98,6 +103,15 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
+// Hùng edit: Đăng ký chính sách CORS cho phép Angular gọi API
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAngularApp",
+        policy => policy.WithOrigins("http://localhost:4200")
+                        .AllowAnyHeader()
+                        .AllowAnyMethod());
+});
+
 var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
@@ -114,6 +128,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// Hùng edit: Kích hoạt CORS (BẮT BUỘC đặt trước Authentication)
+app.UseCors("AllowAngularApp");
 
 // BẮT BUỘC ĐÚNG THỨ TỰ
 app.UseAuthentication();

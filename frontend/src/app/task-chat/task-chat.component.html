@@ -3,28 +3,37 @@
     <div class="sidenav-header">
       <h2>Task List</h2>
       <p>Select a task to discuss</p>
+      <!-- 1. Nút test API get_department_kpi -->
+      <button mat-raised-button color="primary" (click)="testKpiApi()" style="margin-top: 8px; width: 100%;">
+        <mat-icon>bar_chart</mat-icon> Xem KPI Phòng Ban
+      </button>
     </div>
 
     <mat-nav-list>
+      <!-- 2.Hiển thị API get_user_tasks -->
       <a
         mat-list-item
-        *ngFor="let task of mockTasks"
+        *ngFor="let task of tasks"
         (click)="selectTask(task)"
-        [class.active]="selectedTask.id === task.id"
+        [class.active]="selectedTask?.id === task.id"
       >
         <span matListItemTitle>{{ task.title }}</span>
         <span matListItemLine>{{ task.status }}</span>
       </a>
+      <div *ngIf="tasks.length === 0" style="padding: 16px; text-align: center; color: gray; font-size: 0.9em;">
+        Đang tải danh sách công việc...
+      </div>
     </mat-nav-list>
   </mat-sidenav>
 
   <mat-sidenav-content class="main-content">
-    <div class="chat-panel">
+    <div class="chat-panel" *ngIf="selectedTask; else noTaskSelected">
       <div class="chat-header">
         <h3>{{ selectedTask.title }}</h3>
         <p>Status: {{ selectedTask.status }}</p>
       </div>
 
+      <!-- 3. Hiển thị API get_task_chat_history -->
       <div class="messages-list">
         <div
           *ngFor="let message of messages"
@@ -35,6 +44,9 @@
             <div class="message-meta">{{ message.sender }} • {{ message.timestamp | date: 'shortTime' }}</div>
             <div class="message-content">{{ message.content }}</div>
           </mat-card>
+        </div>
+        <div *ngIf="messages.length === 0" style="padding: 16px; text-align: center; color: gray; font-size: 0.9em;">
+          Chưa có dữ liệu chat cho công việc này.
         </div>
       </div>
 
@@ -54,5 +66,12 @@
         </button>
       </div>
     </div>
+
+    <!-- Màn hình chờ khi chưa click chọn task nào bên trái -->
+    <ng-template #noTaskSelected>
+      <div style="display: flex; height: 100%; justify-content: center; align-items: center; color: gray;">
+        <p>Chọn một công việc ở cột trái để thao tác.</p>
+      </div>
+    </ng-template>
   </mat-sidenav-content>
 </mat-sidenav-container>
