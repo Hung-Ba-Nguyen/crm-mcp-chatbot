@@ -9,6 +9,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatListModule } from '@angular/material/list';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { HttpClient } from '@angular/common/http';
+import { ChatService } from '../chat.service';
 
 export interface Task {
   id: string;
@@ -17,9 +18,9 @@ export interface Task {
 }
 
 export interface ChatMessage {
-  sender: 'User' | 'Bot' | string;
-  content: string;
-  timestamp: Date;
+  sender: 'user' | 'bot';
+  text: string;
+  timestamp?: Date;
 }
 
 @Component({
@@ -53,6 +54,7 @@ export class TaskChatComponent implements OnInit {
   // Inject HttpClient và ChangeDetectorRef (Giải quyết lỗi lười cập nhật UI)
   private http = inject(HttpClient);
   private cdr = inject(ChangeDetectorRef);
+  private chatService = inject(ChatService);
 
   // Biến lưu trữ dữ liệu
   tasks: Task[] = [];
@@ -164,8 +166,8 @@ export class TaskChatComponent implements OnInit {
         
         if (Array.isArray(rawMessages) && rawMessages.length > 0) {
           this.messages = rawMessages.map((msg: any) => ({
-            sender: (msg.role || msg.Role || msg.sender || msg.Sender || 'Bot').toString().toLowerCase() === 'user' ? 'User' : 'Bot',
-            content: msg.content || msg.Content || msg.text || msg.Text || '',
+            sender: ((msg.role || msg.Role || msg.sender || msg.Sender || 'bot').toString().toLowerCase() === 'user') ? 'user' : 'bot',
+            text: msg.content || msg.Content || msg.text || msg.Text || '',
             timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date()
           }));
           
@@ -201,19 +203,15 @@ export class TaskChatComponent implements OnInit {
     const content = this.newMessage.trim();
     if (!content || !this.selectedTask) return;
 
-    // Hiển thị tin nhắn của User
-    this.messages = [
-      ...this.messages,
-      { sender: 'User', content, timestamp: new Date() }
-    ];
-    this.newMessage = ''; 
+    // Push user message
+    this.messages = [...this.messages, { sender: 'user', text: content, timestamp: new Date() }];
+    this.newMessage = '';
 
-    // Bật cờ Bot đang suy nghĩ, ép render UI và cuộn chuột
+    // Show typing indicator
     this.isBotTyping = true;
     this.cdr.detectChanges();
     this.scrollToBottom();
 
-    const url = `${this.baseUrl}/chat`;
     const requestBody = {
       Message: content,
       UserId: this.userId,
@@ -221,43 +219,29 @@ export class TaskChatComponent implements OnInit {
       DepartmentId: this.deptId
     };
 
-    this.http.post<any>(url, requestBody).subscribe({
-      next: (response) => {
-        console.log('AI Trả lời:', response);
-        
-        // Tắt cờ Bot đang suy nghĩ
+    // Use ChatService if available, otherwise fallback to HttpClient
+    const send$ = (this.chatService && this.chatService.sendMessage)
+      ? this.chatService.sendMessage(requestBody)
+      : this.http.post<any>(`${this.baseUrl}/chat`, requestBody);
+
+    send$.subscribe({
+      next: (response: any) => {
         this.isBotTyping = false;
-        let aiContent = "Lỗi đọc dữ liệu từ Bot.";
-        
-        if (response && response.data && response.data.Answer) {
-            aiContent = response.data.Answer;
-        } else if (response && response.data && response.data.answer) {
-            aiContent = response.data.answer;
-        } else if (response && response.Answer) {
-            aiContent = response.Answer; 
+
+        let aiText = 'Bot did not return an answer.';
+        if (response) {
+          const payload = response.data || response.Data || response;
+          aiText = payload.answer || payload.Answer || payload.text || payload.Text || (typeof payload === 'string' ? payload : 'Bot did not return an answer.');
         }
 
-        // Cập nhật tin nhắn Bot
-        this.messages = [
-          ...this.messages,
-          { sender: 'Bot', content: aiContent, timestamp: new Date() }
-        ];
-
-        // Ép render UI ngay lập tức và cuộn chuột
+        this.messages = [...this.messages, { sender: 'bot', text: aiText, timestamp: new Date() }];
         this.cdr.detectChanges();
         this.scrollToBottom();
       },
-      error: (err) => {
+      error: (err: any) => {
         console.error('Lỗi khi gửi tin nhắn:', err);
-        
-        // Tắt cờ Bot đang suy nghĩ khi lỗi
         this.isBotTyping = false;
-        this.messages = [
-          ...this.messages,
-          { sender: 'Bot', content: 'Có lỗi xảy ra khi kết nối với AI.', timestamp: new Date() }
-        ];
-
-        // Ép render UI và cuộn chuột
+        this.messages = [...this.messages, { sender: 'bot', text: 'Có lỗi xảy ra khi kết nối với AI.', timestamp: new Date() }];
         this.cdr.detectChanges();
         this.scrollToBottom();
       }
