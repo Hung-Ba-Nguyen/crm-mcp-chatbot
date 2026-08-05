@@ -83,6 +83,25 @@ public class AuthService : IAuthService
         };
     }
 
+    public async Task<AuthResponse?> GenerateTokenForEmailAsync(string email, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(email)) return null;
+
+        var user = await _userRepository.GetByEmailAsync(email.Trim().ToLowerInvariant(), cancellationToken);
+        if (user is null || !user.IsActive) return null;
+
+        var tokenResult = CreateToken(user);
+
+        return new AuthResponse
+        {
+            AccessToken = tokenResult.Token,
+            ExpiresAtUtc = tokenResult.ExpiresAtUtc,
+            UserId = user.Id,
+            Email = user.Email,
+            Role = user.Role
+        };
+    }
+
     private (string Token, DateTime ExpiresAtUtc) CreateToken(User user)
     {
         var expirationMinutes = _jwtSettings.ExpirationMinutes > 0 ? _jwtSettings.ExpirationMinutes : 60;
