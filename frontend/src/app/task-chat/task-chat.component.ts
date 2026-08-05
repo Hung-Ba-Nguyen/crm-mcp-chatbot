@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, inject } from '@angular/core';
+import { Component, OnInit, inject, ViewChild, ElementRef, ChangeDetectorRef } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -8,7 +8,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatListModule } from '@angular/material/list';
 import { MatSidenavModule } from '@angular/material/sidenav';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 
 export interface Task {
   id: string;
@@ -41,23 +41,18 @@ export interface ChatMessage {
 })
 export class TaskChatComponent implements OnInit {
 
+  // Thêm tham chiếu đến khung chat và biến trạng thái
+  @ViewChild('chatContainer') private chatContainer!: ElementRef;
+  isBotTyping: boolean = false;
+
   private readonly baseUrl = 'https://localhost:7209/api';
   private readonly userId = '6a709be6af0d8b17ec32592a';
   private readonly deptId = '6a709be6af0d8b17ec325927';
   
-  // TODO: Dán chuỗi Token vào đây
-  private readonly token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1laWRlbnRpZmllciI6IjZhNzA5YmU2YWYwZDhiMTdlYzMyNTkyYSIsImh0dHA6Ly9zY2hlbWFzLnhtbHNvYXAub3JnL3dzLzIwMDUvMDUvaWRlbnRpdHkvY2xhaW1zL2VtYWlsYWRkcmVzcyI6ImRldjFAY29tcGFueS5jb20iLCJodHRwOi8vc2NoZW1hcy5taWNyb3NvZnQuY29tL3dzLzIwMDgvMDYvaWRlbnRpdHkvY2xhaW1zL3JvbGUiOiJVc2VyIiwiaHR0cDovL3NjaGVtYXMueG1sc29hcC5vcmcvd3MvMjAwNS8wNS9pZGVudGl0eS9jbGFpbXMvbmFtZSI6IlRy4bqnbiBUaOG7iyBM4bqtcCBUcsOsbmgiLCJleHAiOjE3ODU4MzQ2NjgsImlzcyI6IkNoYXRCb3QiLCJhdWQiOiJDaGF0Qm90In0.rjCL0GvsCuPrXvy2nw8_gMIQvbeN238lZ4hldkSyQzQ'; 
 
-  // Khởi tạo HttpHeaders chứa Token
-  private readonly httpOptions = {
-    headers: new HttpHeaders({
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${this.token}`
-    })
-  };
-
-  // Inject HttpClient của Angular
+  // Inject HttpClient và ChangeDetectorRef (Giải quyết lỗi lười cập nhật UI)
   private http = inject(HttpClient);
+  private cdr = inject(ChangeDetectorRef);
 
   // Biến lưu trữ dữ liệu
   tasks: Task[] = [];
@@ -67,9 +62,18 @@ export class TaskChatComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadUserTasks();
-    
-    // Gọi hàm test 3 công cụ MCP ngay khi trang vừa load xong
     this.testMcpTools();
+  }
+
+  // 3. Hàm xử lý cuộn xuống đáy chat
+  private scrollToBottom(): void {
+    setTimeout(() => {
+      try {
+        if (this.chatContainer) {
+          this.chatContainer.nativeElement.scrollTop = this.chatContainer.nativeElement.scrollHeight;
+        }
+      } catch(err) { }
+    }, 50);
   }
 
   // --- HÀM NGHIỆM THU: Test 3 công cụ MCP theo PRD ---
@@ -77,32 +81,29 @@ export class TaskChatComponent implements OnInit {
     console.log('--- BẮT ĐẦU KIỂM TRA 3 TOOL MCP ---');
     const url = `${this.baseUrl}/mcp`; 
 
-    // Tool 1: get_user_tasks
     const payload1 = {
       jsonrpc: "2.0", id: `req-mcp-${new Date().getTime()}-1`, method: "get_user_tasks",
       params: { UserId: this.userId }
     };
-    this.http.post<any>(url, payload1, this.httpOptions).subscribe({
+    this.http.post<any>(url, payload1).subscribe({
       next: (res) => console.log('✅ 1. Dữ liệu Tool get_user_tasks:', res),
       error: (err) => console.error('❌ Lỗi Tool 1:', err)
     });
 
-    // Tool 2: get_department_kpi
     const payload2 = {
       jsonrpc: "2.0", id: `req-mcp-${new Date().getTime()}-2`, method: "get_department_kpi", 
       params: { DepartmentId: this.deptId }
     };
-    this.http.post<any>(url, payload2, this.httpOptions).subscribe({
+    this.http.post<any>(url, payload2).subscribe({
       next: (res) => console.log('✅ 2. Dữ liệu Tool get_department_kpi:', res),
       error: (err) => console.error('❌ Lỗi Tool 2:', err)
     });
 
-    // Tool 3: get_task_chat_history
     const payload3 = {
       jsonrpc: "2.0", id: `req-mcp-${new Date().getTime()}-3`, method: "get_task_chat_history", 
-      params: { TaskId: "6a709be7af0d8b17ec32592c" } // Id trong data đã seed trong collection task_items
+      params: { TaskId: "6a709be7af0d8b17ec32592c" } 
     };
-    this.http.post<any>(url, payload3, this.httpOptions).subscribe({
+    this.http.post<any>(url, payload3).subscribe({
       next: (res) => console.log('✅ 3. Dữ liệu Tool get_task_chat_history:', res),
       error: (err) => console.error('❌ Lỗi Tool 3:', err)
     });
@@ -112,7 +113,7 @@ export class TaskChatComponent implements OnInit {
   loadUserTasks(): void {
     const url = `${this.baseUrl}/users/${this.userId}/tasks`;
     
-    this.http.get<any>(url, this.httpOptions).subscribe({
+    this.http.get<any>(url).subscribe({
       next: (response) => {
         let dataArray = [];
         if (Array.isArray(response)) {
@@ -146,7 +147,7 @@ export class TaskChatComponent implements OnInit {
   // --- API 2: Lịch sử Chat bằng MCP Json-RPC---
   selectTask(task: Task): void {
     this.selectedTask = task;
-    this.messages = []; // Xóa tin nhắn cũ khi chuyển task
+    this.messages = []; 
     
     const url = `${this.baseUrl}/mcp`;
     const rpcPayload = {
@@ -156,19 +157,21 @@ export class TaskChatComponent implements OnInit {
       params: { taskId: task.id }
     };
 
-    this.http.post<any>(url, rpcPayload, this.httpOptions).subscribe({
+    this.http.post<any>(url, rpcPayload).subscribe({
       next: (response) => {
         console.log('Lịch sử chat MCP (Tương tác UI):', response);
         const rawMessages = response.result || response.Result || [];
         
-        // Nếu có lịch sử chat thì map nó ra, nếu mảng rỗng thì UI tự hiện "Chưa có dữ liệu"
         if (Array.isArray(rawMessages) && rawMessages.length > 0) {
           this.messages = rawMessages.map((msg: any) => ({
-             // Ép kiểu xem ai là người gửi (đề phòng backend trả về 'user', 'User', 'Role', v.v.)
             sender: (msg.role || msg.Role || msg.sender || msg.Sender || 'Bot').toString().toLowerCase() === 'user' ? 'User' : 'Bot',
             content: msg.content || msg.Content || msg.text || msg.Text || '',
             timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date()
           }));
+          
+          // Cập nhật UI và cuộn xuống sau khi load lịch sử
+          this.cdr.detectChanges();
+          this.scrollToBottom();
         } else {
           this.messages = []; 
         }
@@ -183,7 +186,7 @@ export class TaskChatComponent implements OnInit {
   testKpiApi(): void {
     const url = `${this.baseUrl}/departments/${this.deptId}/kpi`;
     
-    this.http.get<any>(url, this.httpOptions).subscribe({
+    this.http.get<any>(url).subscribe({
       next: (response) => {
         alert(`KPI Phòng ${response.departmentName}:\n- Tổng Task: ${response.totalTasks}\n- Hoàn thành: ${response.completedTasks}\n- Đang làm: ${response.inProgressTasks}\n- Tỷ lệ: ${response.completionRate}%`);
       },
@@ -193,22 +196,24 @@ export class TaskChatComponent implements OnInit {
     });
   }
 
-  // --- API 4: Gửi tin nhắn mới cho AI (Đã chuẩn hóa theo tài liệu API) ---
+  // --- API 4: Gửi tin nhắn mới cho AI ---
   sendMessage(): void {
     const content = this.newMessage.trim();
     if (!content || !this.selectedTask) return;
 
-    // 1. Hiển thị tin nhắn của User lên màn hình ngay lập tức cho mượt
+    // Hiển thị tin nhắn của User
     this.messages = [
       ...this.messages,
       { sender: 'User', content, timestamp: new Date() }
     ];
-    this.newMessage = ''; // Xóa ô input
+    this.newMessage = ''; 
 
-    // 2. Gọi API /api/chat theo đúng chuẩn tài liệu
+    // Bật cờ Bot đang suy nghĩ, ép render UI và cuộn chuột
+    this.isBotTyping = true;
+    this.cdr.detectChanges();
+    this.scrollToBottom();
+
     const url = `${this.baseUrl}/chat`;
-    
-    // Body gửi lên bao gồm Message, UserId, TaskId, DepartmentId
     const requestBody = {
       Message: content,
       UserId: this.userId,
@@ -216,13 +221,14 @@ export class TaskChatComponent implements OnInit {
       DepartmentId: this.deptId
     };
 
-    this.http.post<any>(url, requestBody, this.httpOptions).subscribe({
+    this.http.post<any>(url, requestBody).subscribe({
       next: (response) => {
         console.log('AI Trả lời:', response);
         
+        // Tắt cờ Bot đang suy nghĩ
+        this.isBotTyping = false;
         let aiContent = "Lỗi đọc dữ liệu từ Bot.";
         
-        // Hứng data trả về từ AI qua ApiResponse<ChatResponse>
         if (response && response.data && response.data.Answer) {
             aiContent = response.data.Answer;
         } else if (response && response.data && response.data.answer) {
@@ -231,18 +237,29 @@ export class TaskChatComponent implements OnInit {
             aiContent = response.Answer; 
         }
 
-        // Cập nhật câu trả lời của Bot lên giao diện
+        // Cập nhật tin nhắn Bot
         this.messages = [
           ...this.messages,
           { sender: 'Bot', content: aiContent, timestamp: new Date() }
         ];
+
+        // Ép render UI ngay lập tức và cuộn chuột
+        this.cdr.detectChanges();
+        this.scrollToBottom();
       },
       error: (err) => {
         console.error('Lỗi khi gửi tin nhắn:', err);
+        
+        // Tắt cờ Bot đang suy nghĩ khi lỗi
+        this.isBotTyping = false;
         this.messages = [
           ...this.messages,
           { sender: 'Bot', content: 'Có lỗi xảy ra khi kết nối với AI.', timestamp: new Date() }
         ];
+
+        // Ép render UI và cuộn chuột
+        this.cdr.detectChanges();
+        this.scrollToBottom();
       }
     });
   }
