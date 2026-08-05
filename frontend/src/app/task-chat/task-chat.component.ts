@@ -8,8 +8,10 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatListModule } from '@angular/material/list';
 import { MatSidenavModule } from '@angular/material/sidenav';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { ChatService } from '../chat.service';
+import { MarkdownModule } from 'ngx-markdown';
+import { environment } from '../../environments/environment';
 
 export interface Task {
   id: string;
@@ -20,6 +22,7 @@ export interface Task {
 export interface ChatMessage {
   sender: 'user' | 'bot';
   text: string;
+  processedText?: string;
   timestamp?: Date;
 }
 
@@ -36,6 +39,7 @@ export interface ChatMessage {
     MatIconModule,
     MatCardModule,
     MatFormFieldModule,
+    MarkdownModule,
   ],
   templateUrl: './task-chat.component.html',
   styleUrl: './task-chat.component.scss',
@@ -46,7 +50,7 @@ export class TaskChatComponent implements OnInit {
   @ViewChild('chatContainer') private chatContainer!: ElementRef;
   isBotTyping: boolean = false;
 
-  private readonly baseUrl = 'https://localhost:7209/api';
+  private readonly baseUrl = environment.apiUrl;
   private readonly userId = '6a709be6af0d8b17ec32592a';
   private readonly deptId = '6a709be6af0d8b17ec325927';
   
@@ -65,6 +69,26 @@ export class TaskChatComponent implements OnInit {
   ngOnInit(): void {
     this.loadUserTasks();
     this.testMcpTools();
+  }
+
+  // Convert patterns like [Task CV01] into markdown links to /tasks/CV01
+  private linkifyTaskCodes(text: string): string {
+    if (!text) return text;
+
+    // Replace [Task CV01] -> [Task CV01](/tasks/CV01)
+    const replaced = text.replace(/\[Task\s+([A-Za-z0-9-]+)\]/g, (_match, id) => {
+      const safeId = encodeURIComponent(id);
+      return `[Task ${id}](/tasks/${safeId})`;
+    });
+
+    // Optional: also convert simple [CV01] -> [CV01](/tasks/CV01)
+    return replaced.replace(/\[([A-Za-z0-9-]{2,})\]/g, (match, maybeId) => {
+      if (/^[A-Za-z0-9-]+$/.test(maybeId)) {
+        const safe = encodeURIComponent(maybeId);
+        return `[${maybeId}](/tasks/${safe})`;
+      }
+      return match;
+    });
   }
 
   // 3. Hàm xử lý cuộn xuống đáy chat
@@ -165,11 +189,15 @@ export class TaskChatComponent implements OnInit {
         const rawMessages = response.result || response.Result || [];
         
         if (Array.isArray(rawMessages) && rawMessages.length > 0) {
-          this.messages = rawMessages.map((msg: any) => ({
-            sender: ((msg.role || msg.Role || msg.sender || msg.Sender || 'bot').toString().toLowerCase() === 'user') ? 'user' : 'bot',
-            text: msg.content || msg.Content || msg.text || msg.Text || '',
-            timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date()
-          }));
+          this.messages = rawMessages.map((msg: any) => {
+            const text = msg.content || msg.Content || msg.text || msg.Text || '';
+            return {
+              sender: ((msg.role || msg.Role || msg.sender || msg.Sender || 'bot').toString().toLowerCase() === 'user') ? 'user' : 'bot',
+              text,
+              processedText: this.linkifyTaskCodes(text),
+              timestamp: msg.timestamp ? new Date(msg.timestamp) : new Date()
+            } as ChatMessage;
+          });
           
           // Cập nhật UI và cuộn xuống sau khi load lịch sử
           this.cdr.detectChanges();
@@ -234,7 +262,7 @@ export class TaskChatComponent implements OnInit {
           aiText = payload.answer || payload.Answer || payload.text || payload.Text || (typeof payload === 'string' ? payload : 'Bot did not return an answer.');
         }
 
-        this.messages = [...this.messages, { sender: 'bot', text: aiText, timestamp: new Date() }];
+        this.messages = [...this.messages, { sender: 'bot', text: aiText, processedText: this.linkifyTaskCodes(aiText), timestamp: new Date() }];
         this.cdr.detectChanges();
         this.scrollToBottom();
       },

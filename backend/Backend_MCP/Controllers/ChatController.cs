@@ -21,19 +21,14 @@ public class ChatController : ControllerBase
             return BadRequest(ApiResponse<ChatResponse>.Fail("Câu hỏi không được để trống."));
         }
 
-        string botReply = $"Tôi đã nhận được câu hỏi của bạn: \"{request.Message}\". Hệ thống Task Chat MVP đang hoạt động tốt!";
+        // Delegate to AI chat service to produce a real response
+        var aiResponse = await _aiChatService.AskAsync(request, cancellationToken);
 
-        // Nếu bạn muốn tích hợp AI thực tế (như Gemini/OpenAI), bạn có thể gọi service ở đây:
-        // var aiResult = await _aiChatService.GetAnswerAsync(request.Message, cancellationToken);
-        // if (!string.IsNullOrEmpty(aiResult)) { botReply = aiResult; }
-
-        var responseData = new ChatResponse
+        if (aiResponse is null)
         {
-            Answer = botReply,
-            ToolUsed = "mcp-dynamic-chat",
-            ProcessedAt = DateTime.UtcNow
-        };
+            return Ok(ApiResponse<ChatResponse>.Fail("AI không trả về phản hồi."));
+        }
 
-        return Ok(ApiResponse<ChatResponse>.Ok(responseData, "Phản hồi thành công từ AI."));
+        return Ok(ApiResponse<ChatResponse>.Ok(aiResponse, "Phản hồi thành công từ AI."));
     }
 }

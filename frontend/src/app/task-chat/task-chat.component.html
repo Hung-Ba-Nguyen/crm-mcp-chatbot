@@ -42,7 +42,9 @@
         >
           <mat-card class="message-bubble">
             <div class="message-meta">{{ message.sender }} • {{ message.timestamp | date: 'shortTime' }}</div>
-            <div class="message-content">{{ message.text }}</div>
+            <div class="message-content">
+              <markdown [data]="message.processedText || message.text"></markdown>
+            </div>
           </mat-card>
         </div>
         <div *ngIf="messages.length === 0" style="padding: 16px; text-align: center; color: gray; font-size: 0.9em;">

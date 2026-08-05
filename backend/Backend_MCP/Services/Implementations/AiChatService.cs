@@ -33,101 +33,114 @@ public class AiChatService : IAiChatService
 
         var toolsDeclaration = _mcpToolService.GetAvailableTools();
 
-        var initialRequestBody = new
+        // Maintain a conversation contents list to support multiple tool call rounds
+        var contentsList = new List<object>
         {
-            contents = new object[]
+            new
             {
-                new
-                {
-                    role = "user",
-                    parts = new object[]
-                    {
-                        new { text = $"{contextPrompt}\nCâu hỏi: {request.Message}" }
-                    }
-                }
-            },
-            tools = toolsDeclaration
+                role = "user",
+                parts = new object[] { new { text = $"{contextPrompt}\nCâu hỏi: {request.Message}" } }
+            }
         };
 
-        var response = await SendToGeminiAsync(apiUrl, initialRequestBody, cancellationToken);
-        var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
+        string? lastFunctionName = null;
 
-        using var doc = JsonDocument.Parse(responseJson);
-        var root = doc.RootElement;
-
-        // Kiểm tra xem LLM có muốn gọi Tool hay không
-        if (root.TryGetProperty("candidates", out var candidates) &&
-            candidates.EnumerateArray().Any() &&
-            candidates[0].TryGetProperty("content", out var content) &&
-            content.TryGetProperty("parts", out var parts))
+        // Loop to allow multiple function-call rounds (max 5 to avoid infinite loops)
+        const int maxRounds = 5;
+        for (int round = 0; round < maxRounds; round++)
         {
-            var firstPart = parts.EnumerateArray().FirstOrDefault();
-            if (firstPart.ValueKind != JsonValueKind.Undefined && firstPart.TryGetProperty("functionCall", out var functionCall))
+            var requestBody = new
             {
-                var functionName = functionCall.GetProperty("name").GetString();
-                var args = functionCall.GetProperty("args");
+                contents = contentsList.ToArray(),
+                tools = toolsDeclaration
+            };
 
-                var mcpRequest = new JsonRpcRequest
+            var response = await SendToGeminiAsync(apiUrl, requestBody, cancellationToken);
+            var responseJson = await response.Content.ReadAsStringAsync(cancellationToken);
+
+            using var doc = JsonDocument.Parse(responseJson);
+            var root = doc.RootElement;
+
+            // Check if model wants to call a tool
+            if (root.TryGetProperty("candidates", out var candidates) &&
+                candidates.EnumerateArray().Any() &&
+                candidates[0].TryGetProperty("content", out var content) &&
+                content.TryGetProperty("parts", out var parts))
+            {
+                var firstPart = parts.EnumerateArray().FirstOrDefault();
+                if (firstPart.ValueKind != JsonValueKind.Undefined && firstPart.TryGetProperty("functionCall", out var functionCall))
                 {
-                    Id = Guid.NewGuid().ToString(),
-                    Method = functionName ?? string.Empty,
-                    Parameters = args
-                };
+                    var functionName = functionCall.GetProperty("name").GetString();
+                    var args = functionCall.GetProperty("args");
 
-                var mcpResponse = await _mcpToolService.HandleAsync(mcpRequest, cancellationToken);
-
-                var followUpRequestBody = new
-                {
-                    contents = new object[]
+                    if (string.IsNullOrWhiteSpace(functionName))
                     {
-                        new
+                        // malformed function call; break and return message
+                        break;
+                    }
+
+                    lastFunctionName = functionName;
+
+                    var mcpRequest = new JsonRpcRequest
+                    {
+                        Id = Guid.NewGuid().ToString(),
+                        Method = functionName,
+                        Parameters = args
+                    };
+
+                    var mcpResponse = await _mcpToolService.HandleAsync(mcpRequest, cancellationToken);
+
+                    // Clone parts so the JsonElement does not reference the disposed JsonDocument
+                    JsonElement partsClone;
+                    try
+                    {
+                        partsClone = JsonSerializer.Deserialize<JsonElement>(parts.GetRawText());
+                    }
+                    catch
+                    {
+                        // Fallback to cloning via Parse if deserialize fails
+                        using var tmpDoc = JsonDocument.Parse(parts.GetRawText());
+                        partsClone = tmpDoc.RootElement.Clone();
+                    }
+
+                    // Append the model's function call parts and then the function response to contentsList
+                    contentsList.Add(new { role = "model", parts = partsClone });
+                    contentsList.Add(new
+                    {
+                        role = "user",
+                        parts = new object[]
                         {
-                            role = "user",
-                            parts = new object[] { new { text = $"{contextPrompt}\nCâu hỏi: {request.Message}" } }
-                        },
-                        new
-                        {
-                            role = "model",
-                            parts = parts
-                        },
-                        new
-                        {
-                            role = "user",
-                            parts = new object[]
+                            new
                             {
-                                new
+                                functionResponse = new
                                 {
-                                    functionResponse = new
-                                    {
-                                        name = functionName,
-                                        response = mcpResponse.Result
-                                    }
+                                    name = functionName,
+                                    // Wrap result in an object to ensure JSON object type (Gemini expects object for function responses)
+                                    response = new { data = mcpResponse.Result }
                                 }
                             }
                         }
-                    },
-                    tools = toolsDeclaration
-                };
+                    });
 
-                var followUpResponse = await SendToGeminiAsync(apiUrl, followUpRequestBody, cancellationToken);
-                var followUpJson = await followUpResponse.Content.ReadAsStringAsync(cancellationToken);
-                using var followUpDoc = JsonDocument.Parse(followUpJson);
-
-                var finalAnswer = ExtractTextFromGeminiResponse(followUpDoc.RootElement);
-
-                return new ChatResponse
-                {
-                    Answer = finalAnswer,
-                    ToolUsed = functionName,
-                    ProcessedAt = DateTime.UtcNow
-                };
+                    // continue to next round so model can consume the functionResponse
+                    continue;
+                }
             }
+
+            // If no function call requested, extract final text and return
+            var finalAnswer = ExtractTextFromGeminiResponse(root);
+            return new ChatResponse
+            {
+                Answer = finalAnswer,
+                ToolUsed = lastFunctionName,
+                ProcessedAt = DateTime.UtcNow
+            };
         }
 
-        var directAnswer = ExtractTextFromGeminiResponse(root);
+        // If loop ends without returning, model did not provide a final text
         return new ChatResponse
         {
-            Answer = directAnswer,
+            Answer = "AI did not return a final textual answer after multiple tool calls.",
             ToolUsed = null,
             ProcessedAt = DateTime.UtcNow
         };

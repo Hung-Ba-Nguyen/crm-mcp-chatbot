@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
+import { SignalRService } from './services/signalr.service';
 import { TaskChatComponent } from './task-chat/task-chat.component';
 
 @Component({
@@ -17,6 +18,14 @@ export class App implements OnInit {
     // Tự động gán sẵn token giả lập để các API gọi đi không bị chặn
     if (!localStorage.getItem('access_token')) {
       localStorage.setItem('access_token', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.mock-token-for-demo');
+    }
+
+    // Start SignalR connection for real-time alerts
+    try {
+      const signalR = inject(SignalRService);
+      signalR.startConnection();
+    } catch (e) {
+      // ignore if injection fails in some environments
     }
   }
 }
