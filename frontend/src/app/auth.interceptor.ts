@@ -1,20 +1,18 @@
-import { HttpHandler, HttpInterceptorFn, HttpRequest, HttpEvent } from '@angular/common/http';
+import { HttpInterceptorFn, HttpRequest, HttpHandlerFn, HttpEvent } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
-export const authInterceptor: HttpInterceptorFn = (
-  req: HttpRequest<unknown>,
-  next: HttpHandler
-): Observable<HttpEvent<unknown>> => {
+// Cú pháp chuẩn của Angular 18 không cần ép kiểu cho req và next ở tham số
+export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const token = localStorage.getItem('access_token');
-  if (!token) {
-    return next(req);
+
+  if (token) {
+    const clonedRequest = req.clone({
+      setHeaders: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+    return next(clonedRequest);
   }
 
-  const authReq = req.clone({
-    setHeaders: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  return next(authReq);
+  return next(req);
 };
