@@ -19,7 +19,7 @@ public class AiChatService : IAiChatService
     public async Task<ChatResponse> AskAsync(AskAiRequest request, CancellationToken cancellationToken = default)
     {
         var apiKey = _configuration["Gemini:ApiKey"] ?? string.Empty;
-        var apiUrl = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={apiKey}";
+        var apiUrl = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key={apiKey}";
 
         var contextPrompt = $"User Id hiện tại đang gọi hệ thống: {request.UserId}.";
         if (!string.IsNullOrWhiteSpace(request.TaskId))
@@ -88,11 +88,11 @@ public class AiChatService : IAiChatService
                         new
                         {
                             role = "model",
-                            parts = new object[] { new { functionCall = new { name = functionName, args = args } } }
+                            parts = parts
                         },
                         new
                         {
-                            role = "function",
+                            role = "user",
                             parts = new object[]
                             {
                                 new
@@ -105,7 +105,8 @@ public class AiChatService : IAiChatService
                                 }
                             }
                         }
-                    }
+                    },
+                    tools = toolsDeclaration
                 };
 
                 var followUpResponse = await SendToGeminiAsync(apiUrl, followUpRequestBody, cancellationToken);
@@ -140,17 +141,53 @@ public class AiChatService : IAiChatService
 
     private static string ExtractTextFromGeminiResponse(JsonElement root)
     {
+        // 1. Kiểm tra xem Gemini có trả về lỗi không
+        if (root.TryGetProperty("error", out var errorInfo))
+        {
+            var errorMsg = errorInfo.TryGetProperty("message", out var msg) ? msg.GetString() : "Lỗi không xác định";
+            return $"Lỗi từ API Gemini: {errorMsg}";
+        }
+
+        // Nếu thành công thì mới bóc tách nội dung
         try
         {
-            return root.GetProperty("candidates")[0]
-                .GetProperty("content")
-                .GetProperty("parts")[0]
-                .GetProperty("text")
-                .GetString() ?? "Không thể lấy phản hồi từ AI.";
+            // 2. Bóc tách JSON an toàn bằng TryGetProperty
+            if (root.TryGetProperty("candidates", out var candidates) && candidates.GetArrayLength() > 0)
+            {
+                var firstCandidate = candidates[0];
+
+                // Nếu AI bị chặn hoặc không có nội dung
+                if (!firstCandidate.TryGetProperty("content", out var content))
+                {
+                    var finishReason = firstCandidate.TryGetProperty("finishReason", out var reason) ? reason.GetString() : "Không rõ lý do";
+                    return $"AI không trả về nội dung (Lý do dừng: {finishReason}).";
+                }
+
+                if (content.TryGetProperty("parts", out var parts))
+                {
+                    // Lặp qua tất cả các parts để tìm văn bản (text)
+                    foreach (var part in parts.EnumerateArray())
+                    {
+                        if (part.TryGetProperty("text", out var textElem))
+                        {
+                            return textElem.GetString() ?? "";
+                        }
+                    }
+
+                    // Trường hợp AI ngoan cố muốn gọi thêm một Tool nữa thay vì trả lời
+                    if (parts.GetArrayLength() > 0 && parts[0].TryGetProperty("functionCall", out var funcCall))
+                    {
+                        var funcName = funcCall.TryGetProperty("name", out var nameElem) ? nameElem.GetString() : "Unknown";
+                        return $"[Hệ thống] Dữ liệu đã được xử lý bằng hàm {funcName}, nhưng AI chưa đưa ra câu trả lời cuối cùng.";
+                    }
+                }
+            }
+            
+            return "Không tìm thấy nội dung văn bản trong phản hồi của AI.";
         }
-        catch
+        catch (Exception ex)
         {
-            return "Đã xảy ra lỗi khi xử lý phản hồi từ AI.";
+            return $"Lỗi parse JSON ở Backend: {ex.Message}";
         }
     }
 }

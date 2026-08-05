@@ -107,7 +107,10 @@ builder.Services.AddSwaggerGen(options =>
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAngularApp",
-        policy => policy.WithOrigins("http://localhost:4200")
+        policy => policy.WithOrigins(
+                        "http://localhost:4200", 
+                        "https://crm-mcp-chatbot.vercel.app"
+                   )
                         .AllowAnyHeader()
                         .AllowAnyMethod());
 });

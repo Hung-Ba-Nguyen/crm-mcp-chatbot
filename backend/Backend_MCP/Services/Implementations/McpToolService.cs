@@ -1,5 +1,10 @@
 namespace Backend_MCP.Services.Implementations;
 
+using System;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
+
 public class McpToolService : IMcpToolService
 {
     private readonly IDepartmentService _departmentService;
@@ -69,61 +74,64 @@ public class McpToolService : IMcpToolService
 
     public object GetAvailableTools()
     {
-        return new
+        return new object[]
         {
-            tools = new object[]
+            new
             {
-                new
+                functionDeclarations = new object[]
                 {
-                    name = "get_department_kpi",
-                    description = "Tính toán KPI của phòng ban theo departmentId, gồm tổng task, hoàn thành, đang làm, trễ hạn và tỷ lệ hoàn thành.",
-                    inputSchema = new
+                    new
                     {
-                        type = "object",
-                        properties = new
+                        name = "get_department_kpi",
+                        description = "Tính toán KPI của phòng ban theo departmentId, gồm tổng task, hoàn thành, đang làm, trễ hạn và tỷ lệ hoàn thành.",
+                        parameters = new
                         {
-                            departmentId = new { type = "string", description = "ID của phòng ban cần tính KPI" }
-                        },
-                        required = new[] { "departmentId" }
-                    }
-                },
-                new
-                {
-                    name = "get_task_chat_history",
-                    description = "Lấy toàn bộ lịch sử tin nhắn và bình luận của một task theo taskId.",
-                    inputSchema = new
-                    {
-                        type = "object",
-                        properties = new
-                        {
-                            taskId = new { type = "string", description = "ID của công việc cần xem lịch sử trao đổi" }
-                        },
-                        required = new[] { "taskId" }
-                    }
-                },
-                new
-                {
-                    name = "get_user_tasks",
-                    description = "Lấy danh sách task của một user theo userId, có hỗ trợ bộ lọc status, priority và limit.",
-                    inputSchema = new
-                    {
-                        type = "object",
-                        properties = new
-                        {
-                            userId = new { type = "string", description = "ID của người dùng cần tra cứu task" },
-                            filters = new
+                            type = "object",
+                            properties = new
                             {
-                                type = "object",
-                                description = "Bộ lọc tùy chọn để thu hẹp danh sách task",
-                                properties = new
+                                departmentId = new { type = "string", description = "ID của phòng ban cần tính KPI" }
+                            },
+                            required = new[] { "departmentId" }
+                        }
+                    },
+                    new
+                    {
+                        name = "get_task_chat_history",
+                        description = "Lấy toàn bộ lịch sử tin nhắn và bình luận của một task theo taskId.",
+                        parameters = new
+                        {
+                            type = "object",
+                            properties = new
+                            {
+                                taskId = new { type = "string", description = "ID của công việc cần xem lịch sử trao đổi" }
+                            },
+                            required = new[] { "taskId" }
+                        }
+                    },
+                    new
+                    {
+                        name = "get_user_tasks",
+                        description = "Lấy danh sách task của một user theo userId, có hỗ trợ bộ lọc status, priority và limit.",
+                        parameters = new
+                        {
+                            type = "object",
+                            properties = new
+                            {
+                                userId = new { type = "string", description = "ID của người dùng cần tra cứu task" },
+                                filters = new
                                 {
-                                    status = new { type = "string", description = "Trạng thái task, ví dụ: Todo, InProgress, Completed, Cancelled" },
-                                    priority = new { type = "string", description = "Độ ưu tiên task, ví dụ: Low, Medium, High, Critical" },
-                                    limit = new { type = "integer", description = "Giới hạn số lượng task trả về" }
+                                    type = "object",
+                                    description = "Bộ lọc tùy chọn để thu hẹp danh sách task",
+                                    properties = new
+                                    {
+                                        status = new { type = "string", description = "Trạng thái task, ví dụ: Todo, InProgress, Completed, Cancelled" },
+                                        priority = new { type = "string", description = "Độ ưu tiên task, ví dụ: Low, Medium, High, Critical" },
+                                        limit = new { type = "integer", description = "Giới hạn số lượng task trả về" }
+                                    }
                                 }
-                            }
-                        },
-                        required = new[] { "userId" }
+                            },
+                            required = new[] { "userId" }
+                        }
                     }
                 }
             }
