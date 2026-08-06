@@ -1,12 +1,14 @@
+import { RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject } from '@angular/core';
 import { SignalRService } from './services/signalr.service';
 import { TaskChatComponent } from './task-chat/task-chat.component';
+import { AuthService } from './auth.service';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, TaskChatComponent],
+  imports: [CommonModule, TaskChatComponent, RouterModule],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })
@@ -15,15 +17,13 @@ export class App implements OnInit {
   isReady = true; 
 
   ngOnInit(): void {
-    // Tự động gán sẵn token giả lập để các API gọi đi không bị chặn
-    if (!localStorage.getItem('access_token')) {
-      localStorage.setItem('access_token', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.mock-token-for-demo');
-    }
-
-    // Start SignalR connection for real-time alerts
+    // Start SignalR only when authenticated
     try {
+      const auth = inject(AuthService);
       const signalR = inject(SignalRService);
-      signalR.startConnection();
+      if (auth.isLoggedIn()) {
+        signalR.startConnection();
+      }
     } catch (e) {
       // ignore if injection fails in some environments
     }
