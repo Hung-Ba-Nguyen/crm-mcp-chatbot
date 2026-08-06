@@ -1,0 +1,900 @@
+/* ─── Host & Base ────────────────────────────────────────────── */
+:host {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+:root {
+  --indigo-50:  #eef2ff;
+  --indigo-100: #e0e7ff;
+  --indigo-200: #c7d2fe;
+  --indigo-400: #818cf8;
+  --indigo-500: #6366f1;
+  --indigo-600: #4f46e5;
+  --indigo-700: #4338ca;
+  --indigo-800: #3730a3;
+  --violet-500: #8b5cf6;
+  --violet-600: #7c3aed;
+  --gray-50:    #f9fafb;
+  --gray-100:   #f3f4f6;
+  --gray-200:   #e5e7eb;
+  --gray-300:   #d1d5db;
+  --gray-400:   #9ca3af;
+  --gray-500:   #6b7280;
+  --gray-600:   #4b5563;
+  --gray-700:   #374151;
+  --gray-900:   #111827;
+  --red-500:    #ef4444;
+  --red-50:     #fef2f2;
+  --white:      #ffffff;
+  --shadow-sm:  0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-card: 0 4px 6px -1px rgb(0 0 0 / 0.07),
+                 0 10px 15px -3px rgb(0 0 0 / 0.07),
+                 0 20px 40px -8px rgb(0 0 0 / 0.08);
+  --radius:     8px;
+  --radius-lg:  12px;
+  --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ─── Page Wrapper: centers the card ─────────────────────────── */
+.page-wrapper {
+  height: 100vh !important;
+  width: 100vw !important;
+  overflow: hidden !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-sizing: border-box !important;
+  
+  /* --- THAY ĐỔI MÀU NỀN Ở ĐÂY --- */
+  background-color: #dba00b !important; /* Mã màu vàng (gần giống Vietmap nhất) */
+  background-image: none !important;    /* Xóa bỏ họa tiết chấm bi nền */
+}
+
+/* ─── Login Card ─────────────────────────────────────────────── */
+.login-card {
+  width: 100%;
+  max-width: 450px;
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: 40px 40px 32px;
+  box-sizing: border-box;
+  animation: fadeInUp 0.5s cubic-bezier(0.4, 0, 0.2, 1) both;
+  position: relative;
+
+  /* Top accent bar */
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    background: linear-gradient(90deg, var(--indigo-500), var(--violet-600));
+  }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Logo ───────────────────────────────────────────────────── */
+.logo-wrap {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.logo-mark {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--indigo-500), var(--violet-600));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.38);
+
+  svg {
+    width: 32px;
+    height: 32px;
+  }
+}
+
+.logo-text-wrap {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
+.logo-name {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--gray-900);
+  letter-spacing: -0.02em;
+
+  span {
+    color: var(--indigo-600);
+  }
+}
+
+.logo-sub {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--gray-400);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* ─── Language Switcher ──────────────────────────────────────── */
+.lang-switcher {
+  display: flex !important;
+  align-items: center;
+  gap: 4px; /* Khoảng cách giữa 2 nút */
+  background-color: #f1f5f9 !important; /* Nền xám nhạt bao quanh */
+  border-radius: 8px !important;
+  padding: 4px !important;
+  margin: 0 auto 20px auto !important; /* Ép ra giữa */
+  width: fit-content !important;
+  border: none !important; 
+}
+
+.lang-btn {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 8px; /* Khoảng cách giữa cờ và chữ */
+  padding: 6px 16px !important;
+  border: none !important;
+  background: transparent !important;
+  border-radius: 6px !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  color: #64748b !important; /* Chữ xám mờ khi chưa chọn */
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  
+  /* Trạng thái được chọn */
+  &.active {
+    background-color: #ffffff !important; /* Nền trắng */
+    color: #0f172a !important; /* Chữ xanh đen đậm */
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important; /* Đổ bóng nhẹ */
+  }
+
+  &:hover:not(.active) {
+    color: #334155 !important;
+  }
+}
+
+/* Kích thước lá cờ */
+.flag-icon {
+  width: 20px;
+  height: 14px;
+  border-radius: 2px;
+  object-fit: cover;
+  box-shadow: 0 0 1px rgba(0,0,0,0.2); /* Viền mờ cho lá cờ */
+}
+
+/* ─── Form Header ────────────────────────────────────────────── */
+.form-header {
+  margin-bottom: 24px;
+}
+
+.form-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--gray-900);
+  letter-spacing: -0.025em;
+  margin-bottom: 4px;
+}
+
+.form-subtitle {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--gray-500);
+  line-height: 1.5;
+}
+
+/* ─── SSO Buttons ────────────────────────────────────────────── */
+.sso-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.sso-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  /* FIX: prevent text wrapping */
+  white-space: nowrap;
+  padding: 9px 10px;
+  border: 1.5px solid var(--gray-200);
+  border-radius: var(--radius);
+  background: var(--white);
+  color: var(--gray-700);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: var(--transition);
+  text-decoration: none;
+  min-width: 0;
+
+  svg {
+    width: 17px;
+    height: 17px;
+    flex-shrink: 0;
+  }
+
+  span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &:hover {
+    background: var(--gray-50);
+    border-color: var(--gray-300);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+  }
+}
+
+/* ─── Divider ────────────────────────────────────────────────── */
+.divider {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+
+  &::before, &::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--gray-200);
+  }
+
+  span {
+    padding: 0 12px;
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--gray-400);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+  }
+}
+
+/* ─── Input Groups ───────────────────────────────────────────── */
+.input-group {
+  margin-bottom: 16px;
+}
+
+.input-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gray-700);
+  margin-bottom: 6px;
+  letter-spacing: -0.005em;
+}
+
+.input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-icon {
+  position: absolute;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+  color: var(--gray-400);
+  transition: var(--transition);
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+.form-input {
+  width: 100%;
+  padding: 10px 14px 10px 38px;
+  border: 1.5px solid var(--gray-200);
+  border-radius: var(--radius);
+  font-size: 14px;
+  font-weight: 400;
+  font-family: inherit;
+  color: var(--gray-900);
+  background: var(--white);
+  transition: var(--transition);
+  outline: none;
+  line-height: 1.5;
+  box-sizing: border-box;
+
+  &::placeholder {
+    color: var(--gray-400);
+  }
+
+  &:hover {
+    border-color: var(--gray-300);
+  }
+
+  &:focus {
+    border-color: var(--indigo-500);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+  }
+}
+
+.input-wrapper:focus-within .input-icon {
+  color: var(--indigo-500);
+}
+
+/* Password toggle */
+.password-toggle {
+  position: absolute;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--gray-400);
+  border-radius: 4px;
+  transition: var(--transition);
+  padding: 0;
+
+  &:hover {
+    color: var(--gray-600);
+    background: var(--gray-100);
+  }
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+.input-with-icon-right .form-input {
+  padding-right: 42px;
+}
+
+/* Field-level inline error (below each input) */
+.field-error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 5px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--red-500);
+
+  svg {
+    width: 13px;
+    height: 13px;
+    flex-shrink: 0;
+  }
+}
+
+/* ─── Error states ───────────────────────────────────────────── */
+.input-group.has-error {
+  .form-input {
+    border-color: var(--red-500);
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+  }
+
+  .input-icon {
+    color: var(--red-500);
+  }
+}
+
+/* ─── Options row ────────────────────────────────────────────── */
+.form-options {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.checkbox-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.custom-checkbox {
+  position: relative;
+  width: 17px;
+  height: 17px;
+
+  input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+}
+
+.checkbox-box {
+  display: block;
+  width: 17px;
+  height: 17px;
+  border: 1.5px solid var(--gray-300);
+  border-radius: 4px;
+  background: var(--white);
+  transition: var(--transition);
+  cursor: pointer;
+  position: relative;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 5px;
+    width: 5px;
+    height: 9px;
+    border: 2px solid white;
+    border-top: none;
+    border-left: none;
+    transform: rotate(45deg) scale(0);
+    transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+}
+
+.custom-checkbox input[type="checkbox"]:checked ~ .checkbox-box {
+  background: var(--indigo-500);
+  border-color: var(--indigo-500);
+
+  &::after {
+    transform: rotate(45deg) scale(1);
+  }
+}
+
+.custom-checkbox input[type="checkbox"]:focus ~ .checkbox-box {
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+  border-color: var(--indigo-500);
+}
+
+.checkbox-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--gray-600);
+}
+
+.forgot-link {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--indigo-600);
+  text-decoration: none;
+  transition: color 0.15s;
+
+  &:hover {
+    color: var(--indigo-700);
+    text-decoration: underline;
+  }
+}
+
+/* ─── Server Error Banner ────────────────────────────────────── */
+.error-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: #fef2f2;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: var(--radius);
+  margin-bottom: 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--red-500);
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+
+  &.visible {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+
+  svg {
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
+  }
+}
+
+/* ─── Sign In Button ─────────────────────────────────────────── */
+.btn-signin {
+  width: 100%;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, var(--indigo-600), var(--violet-600));
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 14.5px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.4), 0 1px 3px rgba(0,0,0,0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(99, 102, 241, 0.5), 0 2px 6px rgba(0,0,0,0.1);
+
+    &::before { opacity: 1; }
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35);
+  }
+
+  &:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .spinner {
+    display: none;
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255,255,255,0.35);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    flex-shrink: 0;
+  }
+
+  &.loading {
+    .spinner { display: block; }
+    .btn-label { opacity: 0.7; }
+  }
+
+  svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+  }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ─── Sign-up row ────────────────────────────────────────────── */
+.signup-row {
+  margin-top: 20px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--gray-500);
+
+  a {
+    color: var(--indigo-600);
+    font-weight: 600;
+    text-decoration: none;
+    transition: color 0.15s;
+
+    &:hover {
+      color: var(--indigo-700);
+      text-decoration: underline;
+    }
+  }
+}
+
+/* ─── Footer links ───────────────────────────────────────────── */
+.form-footer {
+  margin-top: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+
+  a {
+    font-size: 12px;
+    color: var(--gray-400);
+    text-decoration: none;
+    transition: color 0.15s;
+
+    &:hover { color: var(--gray-600); }
+  }
+
+  span {
+    color: var(--gray-300);
+    font-size: 12px;
+  }
+}
+
+/* ─── Responsive ─────────────────────────────────────────────── */
+@media (max-width: 560px) {
+  .page-wrapper {
+    padding: 0;
+    align-items: flex-start;
+  }
+
+  .login-card {
+    max-width: 100%;
+    min-height: 100vh;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 32px 24px;
+
+    &::before { border-radius: 0; }
+  }
+
+  .sso-row {
+    gap: 8px;
+  }
+
+  .sso-btn {
+    padding: 9px 8px;
+    font-size: 12.5px;
+    gap: 5px;
+  }
+}
+
+/* =========================================================
+   BẢN VÁ LỖI ÉP KHUÔN TUYỆT ĐỐI (HIỂN THỊ FULL 1 MÀN HÌNH)
+   ========================================================= */
+
+/* 1. Ép form vừa khít màn hình, triệt tiêu thanh cuộn */
+:host {
+  display: block;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden !important;
+}
+
+.page-wrapper {
+  height: 100vh !important;
+  width: 100vw !important;
+  overflow: hidden !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-sizing: border-box !important;
+}
+
+/* 2. Ép chiều cao Card và đệm bên trong */
+.login-card {
+  padding: 40px 48px !important; /* Nới rộng khoảng cách viền để form nhìn sang hơn */
+  height: auto !important;
+  max-height: 96vh !important; 
+  width: 100% !important;
+  max-width: 540px !important; /* Tăng kích thước khung to ra */
+  margin: 0 auto !important; /* Ép buộc form luôn nằm chính giữa màn hình */
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  background: #ffffff !important;
+  border: 1px solid #e5e7eb !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* 3. Nén tối đa các khoảng cách dọc (margin) */
+.logo-wrap { 
+  margin-bottom: 24px !important; 
+  gap: 16px !important; /* Khoảng cách giữa icon và chữ */
+}
+
+/* Kích thước của cục icon hình vuông */
+.logo-mark { 
+  width: 56px !important; 
+  height: 56px !important; 
+  border-radius: 14px !important; 
+} 
+
+/* Kích thước của con robot bên trong icon */
+.logo-mark svg { 
+  width: 32px !important; 
+  height: 32px !important; 
+}
+
+/* Kích thước chữ VietMap CRM-MCP */
+.logo-name { 
+  font-size: 22px !important; 
+  letter-spacing: -0.02em !important;
+}
+
+/* Kích thước chữ CHATBOT */
+.logo-sub { 
+  font-size: 13px !important; 
+  letter-spacing: 0.05em !important;
+}
+
+.lang-switcher { margin-bottom: 8px !important; }
+.lang-btn { padding: 4px 10px !important; font-size: 12px !important; }
+
+.form-header { margin-bottom: 12px !important; }
+.form-title { font-size: 18px !important; margin-bottom: 2px !important; }
+.form-subtitle { font-size: 12px !important; }
+
+.sso-row { margin-bottom: 10px !important; }
+.sso-btn { padding: 6px 10px !important; font-size: 12px !important; }
+
+.divider { margin-bottom: 10px !important; }
+.divider span { font-size: 10px !important; padding: 0 8px !important; }
+
+.input-group { margin-bottom: 10px !important; }
+.input-label { margin-bottom: 4px !important; font-size: 12px !important; }
+
+/* ─── CĂN GIỮA CÁC THÀNH PHẦN HEADER ─── */
+
+/* 1. Căn giữa Logo và Tên ứng dụng */
+.logo-wrap { 
+  justify-content: center !important; 
+}
+
+/* 2. Căn giữa Bộ chuyển đổi ngôn ngữ */
+.lang-switcher { 
+  margin-left: auto !important; 
+  margin-right: auto !important; 
+}
+
+/* 3. Căn giữa Tiêu đề (Welcome back) và Phụ đề (Please enter...) */
+.form-header { 
+  text-align: center !important; 
+}
+
+/* 4. Fix lỗi tàng hình và bóp nhỏ ô Input */
+.form-input {
+  padding: 6px 12px 6px 36px !important;
+  height: 36px !important;
+  font-size: 13px !important;
+  border: 1.5px solid #d1d5db !important;
+  background-color: #ffffff !important;
+  border-radius: 8px !important;
+  color: #374151 !important;
+}
+
+.sso-btn {
+  border: 1.5px solid #d1d5db !important;
+  background-color: #ffffff !important;
+  border-radius: 8px !important;
+  color: #374151 !important;
+}
+
+/* 5. Fix Checkbox và Options */
+.form-options { margin-bottom: 12px !important; }
+.checkbox-label, .forgot-link { font-size: 12px !important; }
+
+.checkbox-box {
+  border: 1.5px solid #9ca3af !important;
+  background-color: #ffffff !important;
+  box-shadow: none !important;
+}
+.custom-checkbox input[type="checkbox"]:focus ~ .checkbox-box {
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2) !important;
+  border-color: #4f46e5 !important;
+}
+.custom-checkbox input[type="checkbox"]:checked ~ .checkbox-box {
+  background: #4f46e5 !important;
+  border-color: #4f46e5 !important;
+}
+
+/* 6. Đổ màu nút Sign In và ép Footer */
+.btn-signin {
+  padding: 8px 20px !important;
+  height: 38px !important;
+  font-size: 13.5px !important;
+  margin-bottom: 6px !important;
+  background: linear-gradient(135deg, #4f46e5, #7c3aed) !important;
+  color: #ffffff !important;
+  border: none !important;
+}
+
+.error-message { margin-bottom: 8px !important; padding: 6px 10px !important; font-size: 12px !important; }
+.signup-row { margin-top: 6px !important; font-size: 12px !important; margin-bottom: 0 !important; }
+.form-footer { margin-top: 10px !important; }
+.form-footer a, .form-footer span { font-size: 11px !important; }
+
+/* 4. Fix ô Input và LÀM MỜ PLACEHOLDER */
+.form-input {
+  padding: 10px 14px 10px 40px !important;
+  height: 44px !important; /* Tăng chiều cao input cho cân xứng với form to */
+  font-size: 14px !important;
+  border: 1.5px solid #d1d5db !important;
+  background-color: #ffffff !important;
+  border-radius: 8px !important;
+  color: #111827 !important; /* Màu chữ khi bạn gõ thực tế (đậm) */
+}
+
+/* Ép thuộc tính làm mờ chữ gợi ý (Placeholder) */
+.form-input::placeholder {
+  color: #9ca3af !important; /* Màu xám nhạt */
+  opacity: 0.6 !important; /* Giảm độ nét xuống 60% để nhìn mờ mờ */
+  font-weight: 400 !important;
+}
+
+.sso-btn {
+  border: 1.5px solid #d1d5db !important;
+  background-color: #ffffff !important;
+  border-radius: 8px !important;
+  color: #374151 !important;
+  height: 44px !important; /* Cho nút SSO cao bằng ô input */
+}
+
+/* ─── NÂNG CẤP TIÊU ĐỀ (Welcome back) ─── */
+.form-header {
+  text-align: center !important;
+  margin-bottom: 32px !important; /* Tăng khoảng cách cho thoáng đãng */
+}
+
+.form-title {
+  font-size: 30px !important; /* Chữ to và bề thế hơn */
+  font-weight: 800 !important;
+  
+  /* Hiệu ứng màu Gradient mượt mà từ Đen Đậm sang Tím (khớp màu theme) */
+  background: linear-gradient(135deg, #111827 30%, #6366f1 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+  color: transparent !important; /* Dùng làm fallback */
+  
+  letter-spacing: -0.03em !important; /* Ép chữ sát lại một chút tạo cảm giác hiện đại */
+  margin-bottom: 8px !important;
+}
+
+.form-subtitle {
+  font-size: 15px !important;
+  color: #64748b !important; /* Đổi sang màu xám Slate dịu mắt và sang trọng hơn */
+  font-weight: 400 !important;
+  letter-spacing: 0.01em !important;
+}
+
+/* ─── NÂNG CẤP TIÊU ĐỀ ─── */
+.form-header {
+  text-align: center !important;
+  margin-bottom: 20px !important; /* Giảm khoảng cách để form xích lại gần hơn */
+}
+
+/* ─── CHỈNH STYLE CHO NHÃN (LABEL) ─── */
+.input-label {
+  font-size: 14.5px !important; /* Chữ to và rõ ràng hơn */
+  font-weight: 600 !important;
+  color: #111827 !important;
+  margin-bottom: 8px !important; /* Tạo một chút khoảng thở với ô input */
+}
+
+/* Tự động thêm dấu sao đỏ bắt buộc (*) phía sau nhãn */
+.input-label::after {
+  content: " *";
+  color: #ef4444 !important; 
+  font-weight: bold !important;
+}
