@@ -1,1 +1,12 @@
 <router-outlet></router-outlet>
+
+<!-- Toast layer -->
+<app-toast></app-toast>
+<app-task-chat></app-task-chat>
+
+<!-- Daily Briefing (control-flow) -->
+@if (showDaily()) {
+  <app-daily-briefing (close)="showDaily.set(false)"></app-daily-briefing>
+}
+
+<!-- Debug button removed; daily briefing opens between 08:00-09:00 automatically -->

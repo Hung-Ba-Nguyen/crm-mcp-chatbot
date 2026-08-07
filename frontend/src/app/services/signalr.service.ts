@@ -1,10 +1,12 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { HubConnection, HubConnectionBuilder, LogLevel } from '@microsoft/signalr';
 import { environment } from '../../environments/environment';
+import { ToastService } from '../toast/toast.service';
 
 @Injectable({ providedIn: 'root' })
 export class SignalRService {
   private hubConnection?: HubConnection;
+  private toast = inject(ToastService);
 
   public startConnection(): void {
     if (this.hubConnection) return;
@@ -25,8 +27,13 @@ export class SignalRService {
       .catch(err => console.error('SignalR start error', err));
 
     this.hubConnection.on('ReceiveAlert', (payload: any) => {
-      console.log('SignalR ReceiveAlert:', payload);
-      // TODO: forward to toast/notification UI
+      try {
+        const msg = payload?.message || payload?.Message || JSON.stringify(payload);
+        const title = payload?.title || payload?.Title || 'Alert';
+        this.toast.show(msg, title, payload?.level ? payload.level : 'warning');
+      } catch (e) {
+        console.log('SignalR ReceiveAlert:', payload);
+      }
     });
   }
 
