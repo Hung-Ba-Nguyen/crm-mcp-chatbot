@@ -10,64 +10,63 @@
     </div>
 
     <mat-nav-list>
-      <!-- 2.Hiển thị API get_user_tasks -->
-      <a
-        mat-list-item
-        *ngFor="let task of tasks"
-        (click)="selectTask(task)"
-        [class.active]="selectedTask?.id === task.id"
-      >
+      <!-- 2. Hiển thị API get_user_tasks (Control Flow) -->
+      @if (tasks.length > 0) {
+      @for (task of tasks; track task.id) {
+      <a mat-list-item (click)="selectTask(task)" [class.active]="selectedTask?.id === task.id">
         <span matListItemTitle>{{ task.title }}</span>
         <span matListItemLine>{{ task.status }}</span>
       </a>
-      <div *ngIf="tasks.length === 0" style="padding: 16px; text-align: center; color: gray; font-size: 0.9em;">
+      }
+      } @else {
+      <div style="padding: 16px; text-align: center; color: gray; font-size: 0.9em;">
         Đang tải danh sách công việc...
       </div>
+      }
     </mat-nav-list>
   </mat-sidenav>
 
   <mat-sidenav-content class="main-content">
-    <div class="chat-panel" *ngIf="selectedTask; else noTaskSelected">
+    @if (selectedTask) {
+    <div class="chat-panel">
       <div class="chat-header">
         <h3>{{ selectedTask.title }}</h3>
         <p>Status: {{ selectedTask.status }}</p>
       </div>
 
-      <!-- 3. Hiển thị API get_task_chat_history -->
-      <div class="messages-list" #chatContainer style="overflow-y: auto;">
-        <div
-          *ngFor="let message of messages"
-          class="message-row"
-          [ngClass]="{ 'user-message': message.sender === 'user', 'bot-message': message.sender === 'bot' }"
-        >
+      <!-- 3. Hiển thị API get_task_chat_history (Control Flow) -->
+      <div class="messages-list" #chatContainer appAutoScroll style="overflow-y: auto;" (click)="onMarkdownClick($event)">
+        @if (messages().length > 0) {
+        @for (message of messages(); track message.timestamp) {
+        <div class="message-row" [class.user-message]="message.sender === 'user'" [class.bot-message]="message.sender === 'bot'">
           <mat-card class="message-bubble">
-            <div class="message-meta">{{ message.sender }} • {{ message.timestamp | date: 'shortTime' }}</div>
+            <div class="message-meta">{{ message.sender }} • {{ formatShortTime(message.timestamp) }}</div>
             <div class="message-content">
-              <markdown [data]="message.processedText || message.text"></markdown>
+              <app-markdown [data]="message.processedText || message.text"></app-markdown>
             </div>
           </mat-card>
         </div>
-        <div *ngIf="messages.length === 0" style="padding: 16px; text-align: center; color: gray; font-size: 0.9em;">
+        }
+        } @else {
+        <div style="padding: 16px; text-align: center; color: gray; font-size: 0.9em;">
           Chưa có dữ liệu chat cho công việc này.
         </div>
-        
+        }
+
         <!-- HIỆU ỨNG BOT ĐANG SUY NGHĨ -->
-        <div *ngIf="isBotTyping" class="message-row bot-message">
+        @if (isBotTyping()) {
+        <div class="message-row bot-message">
           <mat-card class="message-bubble" style="opacity: 0.7; background-color: #f5f5f5;">
             <div class="message-content"><i>Bot đang suy nghĩ...</i></div>
           </mat-card>
         </div>
+        }
       </div>
 
       <div class="composer">
         <mat-form-field appearance="outline" class="composer-field">
           <mat-label>Message</mat-label>
-          <input
-            matInput
-            [(ngModel)]="newMessage"
-            placeholder="Type your message here..."
-            (keyup.enter)="sendMessage()"
-          />
+          <input matInput [(ngModel)]="newMessage" placeholder="Type your message here..." (keyup.enter)="sendMessage()" />
         </mat-form-field>
 
         <button mat-icon-button color="primary" aria-label="Send message" (click)="sendMessage()">
@@ -75,12 +74,10 @@
         </button>
       </div>
     </div>
-
-    <!-- Màn hình chờ khi chưa click chọn task nào bên trái -->
-    <ng-template #noTaskSelected>
-      <div style="display: flex; height: 100%; justify-content: center; align-items: center; color: gray;">
-        <p>Chọn một công việc ở cột trái để thao tác.</p>
-      </div>
-    </ng-template>
+    } @else {
+    <div style="display: flex; height: 100%; justify-content: center; align-items: center; color: gray;">
+      <p>Chọn một công việc ở cột trái để thao tác.</p>
+    </div>
+    }
   </mat-sidenav-content>
 </mat-sidenav-container>

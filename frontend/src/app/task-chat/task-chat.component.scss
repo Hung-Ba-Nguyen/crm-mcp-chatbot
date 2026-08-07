@@ -84,6 +84,8 @@ mat-nav-list a.active {
 
 .message-row {
   display: flex;
+  margin-bottom: 12px; /* Giảm khoảng cách giữa các tin nhắn */
+  width: 100%;
 }
 
 .user-message {
@@ -95,10 +97,11 @@ mat-nav-list a.active {
 }
 
 .message-bubble {
-  max-width: 70%;
-  padding: 0.9rem 1rem;
-  border-radius: 1rem;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+  max-width: 75%; /* Giới hạn chiều rộng để không bị kéo giãn toàn màn hình */
+  padding: 10px 14px !important; /* Ép giảm padding mặc định của mat-card */
+  border-radius: 16px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) !important;
+  word-wrap: break-word; /* Tự động ngắt dòng nếu text quá dài (như chuỗi JSON) */
 }
 
 .user-message .message-bubble {
@@ -118,8 +121,8 @@ mat-nav-list a.active {
 }
 
 .message-content {
-  white-space: pre-wrap;
-  line-height: 1.5;
+  font-size: 14px; /* Thu nhỏ size chữ cho vừa mắt */
+  line-height: 1.4;
 }
 
 .composer {
@@ -148,4 +151,35 @@ mat-nav-list a.active {
   .message-bubble {
     max-width: 90%;
   }
+}
+/* Tinh chỉnh phần tên và giờ (meta data) */
+.message-meta {
+  font-size: 11px; /* Nhỏ lại để không lấn át nội dung chính */
+  color: #888;
+  margin-bottom: 4px;
+}
+
+/* Phối màu lại cho user (xanh) và bot (trắng/xám) */
+.user-message .message-bubble {
+  background-color: #1976d2 !important; /* Xanh đặc trưng */
+  color: white;
+}
+
+.user-message .message-meta {
+  color: #e0e0e0;
+}
+
+.bot-message .message-bubble {
+  background-color: #f5f5f5 !important;
+  color: rgba(0, 0, 0, 0.87);
+}
+
+/* Thu gọn ô nhập text bên dưới */
+.composer-field {
+  width: 100%;
+  font-size: 14px; /* Thu nhỏ chữ trong ô input */
+}
+
+::ng-deep .composer-field .mat-mdc-form-field-flex {
+  padding: 0 12px; /* Giảm độ phình của viền input */
 }
