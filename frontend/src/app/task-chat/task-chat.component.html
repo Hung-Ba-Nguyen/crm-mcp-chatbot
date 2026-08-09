@@ -30,7 +30,10 @@
     @if (selectedTask) {
     <div class="chat-panel">
       <div class="chat-header">
-        <h3>{{ selectedTask.title }}</h3>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <h3 style="margin:0">{{ selectedTask.title }}</h3>
+          <button mat-stroked-button color="primary" (click)="summarizeTask()" style="height:32px; font-size:0.8rem;">Summarize</button>
+        </div>
         <p>Status: {{ selectedTask.status }}</p>
       </div>
 

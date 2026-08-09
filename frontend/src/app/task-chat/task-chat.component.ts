@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, inject, signal } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, signal, HostListener } from '@angular/core';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -98,6 +98,69 @@ export class TaskChatComponent implements OnInit, OnDestroy {
     }
   }
 
+  // Summarize the selected task by asking the LLM for a concise summary
+  summarizeTask(): void {
+    if (!this.selectedTask) return;
+
+    const prompt = 'Please summarize the current status and blockers of this task.';
+    const currentActiveTaskId = this.selectedTask.id;
+
+    // push a user-like info message to indicate action
+    const userMsg: ChatMessage = { sender: 'user', text: '[Request] Summarize task', processedText: '[Request] Summarize task', timestamp: new Date() };
+    this.messages.update(prev => [...prev, userMsg, { sender: 'bot', text: '', processedText: '', timestamp: new Date() }]);
+    const botIndex = this.messages().length - 1;
+    this.chatCache.set(currentActiveTaskId, this.messages());
+    this.isBotTyping.set(true);
+
+    const requestBody = { Message: prompt, UserId: this.userId, TaskId: currentActiveTaskId, DepartmentId: this.deptId };
+
+    const hasStream = typeof (this.chatService as any).sendMessageStream === 'function';
+    if (hasStream) {
+      const abortCtrl = new AbortController();
+      const stream$ = (this.chatService as any).sendMessageStream(requestBody, abortCtrl.signal) as import('rxjs').Observable<string>;
+
+      stream$.subscribe({
+        next: (chunk: string) => {
+          // append incremental text
+          const isActive = this.selectedTask?.id === currentActiveTaskId;
+          const targetArray = isActive ? this.messages() : (this.chatCache.get(currentActiveTaskId) || []);
+          const copy = [...targetArray];
+          const existing = copy[botIndex] || { sender: 'bot', text: '', processedText: '', timestamp: new Date() };
+          const newText = (existing.text || '') + chunk;
+          copy[botIndex] = { ...existing, text: newText, processedText: this.linkifyTaskCodes(newText) };
+          if (isActive) this.messages.set(copy);
+          this.chatCache.set(currentActiveTaskId, copy);
+        },
+        error: (err: any) => {
+          console.error('Summarize stream error', err);
+          if (this.selectedTask?.id === currentActiveTaskId) this.isBotTyping.set(false);
+        },
+        complete: () => {
+          if (this.selectedTask?.id === currentActiveTaskId) this.isBotTyping.set(false);
+        }
+      });
+    } else {
+      const send$ = (this.chatService && this.chatService.sendMessage) ? this.chatService.sendMessage(requestBody) : this.http.post<any>(`${this.baseUrl}/chat`, requestBody);
+      send$.subscribe({
+        next: (response: any) => {
+          this.isBotTyping.set(false);
+          const botText = response?.Answer || response?.answer || response?.result || (typeof response === 'string' ? response : '') || 'No response';
+          const isActive = this.selectedTask?.id === currentActiveTaskId;
+          const targetArray = isActive ? this.messages() : (this.chatCache.get(currentActiveTaskId) || []);
+          const copy = [...targetArray];
+          copy[botIndex] = { sender: 'bot', text: botText, processedText: this.linkifyTaskCodes(botText), timestamp: new Date() };
+          if (isActive) this.messages.set(copy);
+          this.chatCache.set(currentActiveTaskId, copy);
+        },
+        error: (err: any) => {
+          console.error('Summarize error', err);
+          if (this.selectedTask?.id === currentActiveTaskId) this.isBotTyping.set(false);
+        }
+      });
+    }
+  }
+
+  @HostListener('click', ['$event'])
   onMarkdownClick(event: Event): void {
     try {
       const target = event.target as HTMLElement;
@@ -106,11 +169,19 @@ export class TaskChatComponent implements OnInit, OnDestroy {
       const href = anchor.getAttribute('href') ?? '';
       if (!href) return;
       // deep link pattern /tasks/:id or tasks/:id
-      const match = href.match(/\/?tasks\/?([A-Za-z0-9-_%]+)/i);
-      if (match) {
+      // Only intercept anchors that are inside the chat message content (markdown-rendered bubble)
+      const insideMessage = !!anchor.closest('.message-content');
+      const match = insideMessage ? href.match(/\/?tasks\/?([A-Za-z0-9-_%]+)/i) : null;
+      if (match && insideMessage) {
         event.preventDefault();
         const id = decodeURIComponent(match[1]);
-        this.router.navigate(['/tasks', id]).catch(() => { /* ignore */ });
+        const path = `/tasks/${id}`;
+        // Prefer SPA navigation, fallback to full navigation if it fails
+        try {
+          this.router.navigateByUrl(path).catch(() => { (window.location as any).href = path; });
+        } catch {
+          (window.location as any).href = path;
+        }
       }
     } catch {
       // ignore
