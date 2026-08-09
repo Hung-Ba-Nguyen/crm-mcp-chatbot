@@ -36,7 +36,7 @@ export class App implements OnInit {
         const now = new Date();
         const hour = now.getHours();
         if (hour >= 8 && hour < 9) {
-          const key = 'lastBriefingDate';
+        const key = 'daily_briefing_date';
           const last = localStorage.getItem(key);
           const today = now.toISOString().slice(0, 10); // YYYY-MM-DD
           if (last !== today) {

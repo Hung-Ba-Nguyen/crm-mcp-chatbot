@@ -1,12 +1,15 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, NgZone } from '@angular/core';
+import { Router } from '@angular/router';
 import { HubConnection, HubConnectionBuilder, LogLevel } from '@microsoft/signalr';
 import { environment } from '../../environments/environment';
-import { ToastService } from '../toast/toast.service';
+import { MatSnackBar } from '@angular/material/snack-bar';
 
 @Injectable({ providedIn: 'root' })
 export class SignalRService {
   private hubConnection?: HubConnection;
-  private toast = inject(ToastService);
+  private snackBar = inject(MatSnackBar);
+  private ngZone = inject(NgZone);
+  private router = inject(Router);
 
   public startConnection(): void {
     if (this.hubConnection) return;
@@ -28,11 +31,27 @@ export class SignalRService {
 
     this.hubConnection.on('ReceiveAlert', (payload: any) => {
       try {
-        const msg = payload?.message || payload?.Message || JSON.stringify(payload);
-        const title = payload?.title || payload?.Title || 'Alert';
-        this.toast.show(msg, title, payload?.level ? payload.level : 'warning');
+        // Ensure the snackBar is opened inside Angular zone
+        this.ngZone.run(() => {
+          const msg = payload?.message || payload?.Message || JSON.stringify(payload);
+          const actionRef = this.snackBar.open(msg, 'View', { duration: 6000 });
+
+          // wire the View action to navigate to a related task or url when available
+          const taskId = payload?.taskId || payload?.TaskId || payload?.task || payload?.Task;
+          const url = payload?.url || payload?.Url;
+          if (taskId || url) {
+            actionRef.onAction().subscribe(() => {
+              try {
+                const path = taskId ? `/tasks/${taskId}` : url;
+                this.router.navigateByUrl(path).catch(() => { (window.location as any).href = path; });
+              } catch {
+                try { (window.location as any).href = taskId ? `/tasks/${taskId}` : url; } catch { }
+              }
+            });
+          }
+        });
       } catch (e) {
-        console.log('SignalR ReceiveAlert:', payload);
+        console.log('SignalR ReceiveAlert (fallback):', payload);
       }
     });
   }
