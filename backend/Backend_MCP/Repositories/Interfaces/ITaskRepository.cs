@@ -10,6 +10,8 @@ public interface ITaskRepository
 
     Task<List<TaskItem>> GetByAssigneeIdAsync(string assigneeId, CancellationToken cancellationToken = default);
 
+    Task<List<TaskItem>> GetOverdueAsync(DateTime? now = null, CancellationToken cancellationToken = default);
+
     Task CreateAsync(TaskItem taskItem, CancellationToken cancellationToken = default);
 
     Task ReplaceAsync(TaskItem taskItem, CancellationToken cancellationToken = default);
