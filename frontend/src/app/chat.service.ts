@@ -67,13 +67,80 @@ export class ChatService {
           }
 
           const decoder = new TextDecoder();
+          let buffer = '';
+          const emitChunk = (text: string) => {
+            if (!text) return;
+            subscriber.next(text);
+          };
+
+          // Helper to try parse JSON objects from the buffer. If a valid JSON object
+          // is found, extract data.answer (or Answer/answer) and emit that value.
+          const tryParseBuffer = () => {
+            // Look for the first opening brace
+            let start = buffer.indexOf('{');
+            if (start === -1) {
+              // No JSON start found — emit as plain text and clear buffer
+              if (buffer.trim()) {
+                emitChunk(buffer);
+              }
+              buffer = '';
+              return;
+            }
+
+            // Attempt to find a matching '}' and parse progressively
+            for (let end = buffer.indexOf('}', start); end !== -1; end = buffer.indexOf('}', end + 1)) {
+              const candidate = buffer.substring(start, end + 1);
+              try {
+                const obj = JSON.parse(candidate);
+                // Prefer nested properties where available
+                const answer = obj?.data?.answer ?? obj?.Answer ?? obj?.answer ?? null;
+                if (typeof answer === 'string') {
+                  emitChunk(answer);
+                } else {
+                  // If no answer field, emit the whole object as fallback string
+                  emitChunk(JSON.stringify(obj));
+                }
+                // remove the parsed portion and continue
+                buffer = buffer.substring(end + 1);
+                // try to parse more JSON in the remaining buffer
+                return tryParseBuffer();
+              } catch {
+                // not valid JSON yet, continue searching for a later '}'
+                continue;
+              }
+            }
+
+            // If we get here, we couldn't parse a complete JSON object yet.
+            // If buffer is large and doesn't look like it will complete, emit as plain text.
+            if (buffer.length > 1000) {
+              emitChunk(buffer);
+              buffer = '';
+            }
+          };
+
           while (true) {
             const { done, value } = await reader.read();
             if (done) break;
             if (value) {
               const chunk = decoder.decode(value, { stream: true });
-              if (chunk) subscriber.next(chunk);
+              if (!chunk) continue;
+              buffer += chunk;
+              tryParseBuffer();
             }
+          }
+
+          // flush any remaining buffer as plain text
+          if (buffer.trim()) {
+            // Try a final JSON parse attempt
+            try {
+              const obj = JSON.parse(buffer);
+              const answer = obj?.data?.answer ?? obj?.Answer ?? obj?.answer ?? null;
+              if (typeof answer === 'string') subscriber.next(answer);
+              else subscriber.next(buffer);
+            } catch {
+              subscriber.next(buffer);
+            }
+            buffer = '';
           }
 
           // finalize

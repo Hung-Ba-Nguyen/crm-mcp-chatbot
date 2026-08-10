@@ -61,6 +61,40 @@ mat-nav-list a.active {
   background: linear-gradient(135deg, #eff6ff, #f8fafc);
 }
 
+.chat-header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.chat-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chat-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.chat-header-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.status-badge {
+  background: #fffbeb; /* light amber */
+  color: #92400e; /* dark amber */
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
 .chat-header h3 {
   margin: 0;
   font-size: 1.1rem;
@@ -97,21 +131,24 @@ mat-nav-list a.active {
 }
 
 .message-bubble {
-  max-width: 75%; /* Giới hạn chiều rộng để không bị kéo giãn toàn màn hình */
-  padding: 10px 14px !important; /* Ép giảm padding mặc định của mat-card */
+  max-width: 80%; /* limit bubble width for a modern look */
+  padding: 10px 14px !important; /* reduce mat-card padding */
   border-radius: 16px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) !important;
-  word-wrap: break-word; /* Tự động ngắt dòng nếu text quá dài (như chuỗi JSON) */
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06) !important;
+  word-wrap: break-word;
+  transition: background-color 0.15s ease, transform 0.08s ease;
 }
 
 .user-message .message-bubble {
-  background: #2563eb;
+  background: #1e40af; /* deep blue */
   color: #ffffff;
+  border-radius: 16px 16px 4px 16px; /* bottom-right sharper */
 }
 
 .bot-message .message-bubble {
   background: #ffffff;
   color: #0f172a;
+  border-radius: 16px 16px 16px 4px; /* bottom-left sharper */
 }
 
 .message-meta {
@@ -121,8 +158,14 @@ mat-nav-list a.active {
 }
 
 .message-content {
-  font-size: 14px; /* Thu nhỏ size chữ cho vừa mắt */
-  line-height: 1.4;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+/* Link contrast for user message bubbles */
+.user-message .message-content a {
+  color: #93c5fd; /* light blue for contrast */
+  text-decoration: underline;
 }
 
 .composer {
@@ -134,9 +177,52 @@ mat-nav-list a.active {
   background: #ffffff;
 }
 
-.composer-field {
-  flex: 1 1 auto;
+/* floating input container */
+
+.composer {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  margin: 12px;
+  box-sizing: border-box;
 }
+
+.composer-wrapper {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 24px;
+  border: 1px solid #e5e7eb; /* softened border */
+  box-shadow: 0 4px 8px rgba(2,6,23,0.06);
+  background: #ffffff;
+}
+
+.composer-input {
+  flex: 1 1 auto;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 14px;
+  padding: 8px 6px;
+}
+
+.send-inline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  background: transparent;
+  box-shadow: none;
+  border: none;
+  color: #2563eb;
+}
+
+/* keep composer-field fallback for older markup */
+.composer-field { flex: 1 1 auto; }
 
 @media (max-width: 768px) {
   .task-sidenav {
@@ -180,6 +266,111 @@ mat-nav-list a.active {
   font-size: 14px; /* Thu nhỏ chữ trong ô input */
 }
 
+.summarize-btn {
+  background: #e0f2fe; /* soft light blue */
+  border: none !important;
+  box-shadow: none !important;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  border-radius: 8px;
+  color: #0369a1;
+}
+
+.summarize-ico {
+  font-size: 0.95rem;
+}
+
+/* ensure mobile still respects bubble width */
+@media (max-width: 768px) {
+  .message-bubble { max-width: 92%; }
+}
+
 ::ng-deep .composer-field .mat-mdc-form-field-flex {
   padding: 0 12px; /* Giảm độ phình của viền input */
+}
+
+/* Empty state styling */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 12px;
+  color: #9ca3af; /* muted gray */
+}
+
+.empty-ico {
+  font-size: 48px;
+  color: #cbd5e1;
+}
+
+.empty-text {
+  margin-top: 12px;
+  font-size: 1rem;
+  color: #9ca3af;
+}
+
+/* KPI Modal styles */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999 !important;
+}
+
+.kpi-modal {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 20px 22px;
+  width: 92%;
+  max-width: 520px;
+  box-shadow: 0 20px 40px rgba(2,6,23,0.15);
+}
+
+.kpi-title {
+  margin: 0 0 12px 0;
+  font-size: 1.1rem;
+}
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px 18px;
+  margin-bottom: 16px;
+}
+
+.kpi-item {
+  background: #f8fafc;
+  padding: 10px 12px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+}
+
+.kpi-label {
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.kpi-value {
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: #0f172a;
+  margin-top: 6px;
+}
+
+.kpi-actions { text-align: right; }
+.kpi-close {
+  background: #e6eef8;
+  color: #0f172a;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-weight: 600;
 }

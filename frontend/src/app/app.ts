@@ -1,7 +1,7 @@
 
 import { RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
-import { Component, OnInit, inject, signal, afterNextRender } from '@angular/core';
+import { Component, OnInit, inject, signal, afterNextRender, Injector, runInInjectionContext } from '@angular/core';
 import { SignalRService } from './services/signalr.service';
 import { TaskChatComponent } from './task-chat/task-chat.component';
 import { AuthService } from './auth.service';
@@ -23,6 +23,7 @@ export class App implements OnInit {
   // inject services at class-level for clarity
   private auth = inject(AuthService);
   private signalR = inject(SignalRService);
+  private injector = inject(Injector);
 
   ngOnInit(): void {
     try {
@@ -41,10 +42,25 @@ export class App implements OnInit {
           const today = now.toISOString().slice(0, 10); // YYYY-MM-DD
           if (last !== today) {
             // render after next render to ensure app template is present
-            afterNextRender(() => {
-              this.showDaily.set(true);
-              try { localStorage.setItem(key, today); } catch { /* ignore */ }
-            });
+            // run inside an injection context to avoid NG0203 runtime error
+            try {
+              runInInjectionContext(this.injector, () => {
+                afterNextRender(() => {
+                  this.showDaily.set(true);
+                  try { localStorage.setItem(key, today); } catch { /* ignore */ }
+                });
+              });
+            } catch (e) {
+              // fallback: try direct afterNextRender
+              try {
+                afterNextRender(() => {
+                  this.showDaily.set(true);
+                  try { localStorage.setItem(key, today); } catch { /* ignore */ }
+                });
+              } catch (err) {
+                console.warn('Could not schedule daily briefing in injection context', err || e);
+              }
+            }
           }
         }
       }

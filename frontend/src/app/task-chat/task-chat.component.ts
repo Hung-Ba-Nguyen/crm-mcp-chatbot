@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, inject, signal, HostListener } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, signal, HostListener, ChangeDetectorRef } from '@angular/core';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -54,8 +54,12 @@ export class TaskChatComponent implements OnInit, OnDestroy {
   private http = inject(HttpClient);
   private chatService = inject(ChatService);
   private router = inject(Router) as Router;
+  private cdr = inject(ChangeDetectorRef);
   private currentStreamController?: AbortController;
   private currentStreamSub: import('rxjs').Subscription | null = null;
+  // typing simulation: queue per bot message index and interval handles
+  private typingQueues = new Map<number, string>();
+  private typingIntervals = new Map<number, any>();
 
   // state
   tasks: Task[] = [];
@@ -63,6 +67,10 @@ export class TaskChatComponent implements OnInit, OnDestroy {
   selectedTask: Task | null = null;
   newMessage = '';
   isBotTyping = signal(false);
+
+  // KPI modal state
+  showKpiModal = signal(false);
+  kpiData = signal<{ departmentName?: string; totalTasks?: number; completedTasks?: number; inProgressTasks?: number; completionRate?: number } | null>(null);
 
   // lưu lịch sử chat của từng Task
   private chatCache = new Map<string, ChatMessage[]>();
@@ -121,22 +129,97 @@ export class TaskChatComponent implements OnInit, OnDestroy {
 
       stream$.subscribe({
         next: (chunk: string) => {
-          // append incremental text
-          const isActive = this.selectedTask?.id === currentActiveTaskId;
-          const targetArray = isActive ? this.messages() : (this.chatCache.get(currentActiveTaskId) || []);
-          const copy = [...targetArray];
-          const existing = copy[botIndex] || { sender: 'bot', text: '', processedText: '', timestamp: new Date() };
-          const newText = (existing.text || '') + chunk;
-          copy[botIndex] = { ...existing, text: newText, processedText: this.linkifyTaskCodes(newText) };
-          if (isActive) this.messages.set(copy);
-          this.chatCache.set(currentActiveTaskId, copy);
+          // Normalize chunk: if it contains a JSON wrapper like {.."data":{ "answer": "..." }..}
+          // extract only the inner answer text. Otherwise treat as plain incremental text.
+          const extractAnswer = (input: string): string => {
+            if (!input) return '';
+            const s = input.trim();
+            // Quick attempt: full JSON
+            try {
+              const obj = JSON.parse(s);
+              return obj?.data?.answer ?? obj?.Answer ?? obj?.answer ?? input;
+            } catch {
+              // try to find a JSON substring
+              const match = s.match(/\{[\s\S]*\}/);
+              if (match) {
+                try {
+                  const obj = JSON.parse(match[0]);
+                  return obj?.data?.answer ?? obj?.Answer ?? obj?.answer ?? input;
+                } catch {
+                  /* fallthrough */
+                }
+              }
+            }
+            return input;
+          };
+
+          const piece = extractAnswer(chunk);
+
+          // Simulate typewriter: enqueue characters and start an interval if needed.
+          const queueKey = botIndex;
+          const existingQueue = this.typingQueues.get(queueKey) || '';
+          this.typingQueues.set(queueKey, existingQueue + piece);
+
+          if (!this.typingIntervals.has(queueKey)) {
+            // Bot has started producing output; hide the thinking indicator
+            try { this.isBotTyping.set(false); } catch { }
+            const intervalMs = 18; // typing speed per character
+            const intervalHandle = setInterval(() => {
+              const q = this.typingQueues.get(queueKey) || '';
+              if (!q) {
+                // nothing to type currently; stop interval until new data arrives
+                clearInterval(intervalHandle);
+                this.typingIntervals.delete(queueKey);
+                this.typingQueues.delete(queueKey);
+                return;
+              }
+
+              const char = q.charAt(0);
+              this.typingQueues.set(queueKey, q.substring(1));
+
+              // append a single character to the bot message at botIndex
+              const isActiveLocal = this.selectedTask?.id === currentActiveTaskId;
+              const targetArray = isActiveLocal ? this.messages() : (this.chatCache.get(currentActiveTaskId) || []);
+              const copy = [...targetArray];
+              const existing = copy[botIndex] || { sender: 'bot', text: '', processedText: '', timestamp: new Date() };
+              const newText = (existing.text || '') + char;
+              copy[botIndex] = { ...existing, text: newText, processedText: this.linkifyTaskCodes(newText) };
+              if (isActiveLocal) this.messages.set(copy);
+              this.chatCache.set(currentActiveTaskId, copy);
+            }, intervalMs);
+
+            this.typingIntervals.set(queueKey, intervalHandle as any);
+          }
         },
         error: (err: any) => {
           console.error('Summarize stream error', err);
+          // clear any typing intervals and queues for this botIndex
+          try {
+            const h = this.typingIntervals.get(botIndex);
+            if (h) { clearInterval(h); this.typingIntervals.delete(botIndex); }
+          } catch {}
+          this.typingQueues.delete(botIndex);
           if (this.selectedTask?.id === currentActiveTaskId) this.isBotTyping.set(false);
         },
         complete: () => {
-          if (this.selectedTask?.id === currentActiveTaskId) this.isBotTyping.set(false);
+          // Wait until any remaining queued characters are flushed by the interval,
+          // then mark bot typing as finished.
+          const checkFinish = () => {
+            const q = this.typingQueues.get(botIndex) || '';
+            if (!q) {
+              if (this.selectedTask?.id === currentActiveTaskId) this.isBotTyping.set(false);
+            } else {
+              const waiter = setInterval(() => {
+                const q2 = this.typingQueues.get(botIndex) || '';
+                if (!q2) {
+                  clearInterval(waiter);
+                  if (this.selectedTask?.id === currentActiveTaskId) this.isBotTyping.set(false);
+                }
+              }, 50);
+            }
+          };
+
+          checkFinish();
         }
       });
     } else {
@@ -214,8 +297,10 @@ export class TaskChatComponent implements OnInit, OnDestroy {
 
         if (dataArray && dataArray.length > 0) {
           this.tasks = dataArray.map((t: any) => ({ id: t.id || t.Id, title: t.title || t.Title, status: t.status || t.Status }));
+          try { this.cdr.detectChanges(); } catch { }
         } else {
           this.tasks = [];
+          try { this.cdr.detectChanges(); } catch { }
         }
       },
       error: (err) => console.error('Lỗi khi lấy danh sách tasks:', err),
@@ -275,7 +360,16 @@ export class TaskChatComponent implements OnInit, OnDestroy {
     const url = `${this.baseUrl}/departments/${this.deptId}/kpi`;
     this.http.get<any>(url).subscribe({
       next: response => {
-        alert(`KPI Phòng ${response.departmentName}:\n- Tổng Task: ${response.totalTasks}\n- Hoàn thành: ${response.completedTasks}\n- Đang làm: ${response.inProgressTasks}\n- Tỷ lệ: ${response.completionRate}%`);
+        // store KPI data and show modal instead of blocking alert
+        this.kpiData.set({
+          departmentName: response?.departmentName,
+          totalTasks: response?.totalTasks,
+          completedTasks: response?.completedTasks,
+          inProgressTasks: response?.inProgressTasks,
+          completionRate: response?.completionRate,
+        });
+        this.showKpiModal.set(true);
+        try { this.cdr.detectChanges(); } catch { }
       }, error: err => console.error('Lỗi lấy KPI:', err)
     });
   }
@@ -327,14 +421,77 @@ export class TaskChatComponent implements OnInit, OnDestroy {
       const stream$ = (this.chatService as any).sendMessageStream(requestBody, abortCtrl.signal) as import('rxjs').Observable<string>;
 
       stream$.subscribe({
-        next: (chunk: string) => updateMessageBackground(chunk),
+        next: (chunk: string) => {
+          // extract answer if JSON-wrapped
+          const extractAnswer = (input: string): string => {
+            if (!input) return '';
+            const s = input.trim();
+            try {
+              const obj = JSON.parse(s);
+              return obj?.data?.answer ?? obj?.Answer ?? obj?.answer ?? input;
+            } catch {
+              const match = s.match(/\{[\s\S]*\}/);
+              if (match) {
+                try {
+                  const obj = JSON.parse(match[0]);
+                  return obj?.data?.answer ?? obj?.Answer ?? obj?.answer ?? input;
+                } catch {}
+              }
+            }
+            return input;
+          };
+
+          const piece = extractAnswer(chunk);
+
+          // enqueue for typing simulation per botIndex
+          const existingQueue = this.typingQueues.get(botIndex) || '';
+          this.typingQueues.set(botIndex, existingQueue + piece);
+
+          if (!this.typingIntervals.has(botIndex)) {
+            // Bot has started producing output; hide the thinking indicator
+            try { this.isBotTyping.set(false); } catch { }
+            const intervalMs = 18;
+            const handle = setInterval(() => {
+              const q = this.typingQueues.get(botIndex) || '';
+              if (!q) {
+                clearInterval(handle);
+                this.typingIntervals.delete(botIndex);
+                this.typingQueues.delete(botIndex);
+                return;
+              }
+              const char = q.charAt(0);
+              this.typingQueues.set(botIndex, q.substring(1));
+
+              updateMessageBackground(char);
+            }, intervalMs);
+
+            this.typingIntervals.set(botIndex, handle as any);
+          }
+        },
         error: (err) => {
           console.error('Stream error', err);
           updateMessageBackground('', true);
+          try { const h = this.typingIntervals.get(botIndex); if (h) { clearInterval(h); this.typingIntervals.delete(botIndex); } } catch {}
+          this.typingQueues.delete(botIndex);
           if (this.selectedTask?.id === currentActiveTaskId) this.isBotTyping.set(false);
         },
         complete: () => {
-          if (this.selectedTask?.id === currentActiveTaskId) this.isBotTyping.set(false);
+          // wait until queue empties to clear typing indicator
+          const checkFinish = () => {
+            const q = this.typingQueues.get(botIndex) || '';
+            if (!q) {
+              if (this.selectedTask?.id === currentActiveTaskId) this.isBotTyping.set(false);
+            } else {
+              const waiter = setInterval(() => {
+                const q2 = this.typingQueues.get(botIndex) || '';
+                if (!q2) {
+                  clearInterval(waiter);
+                  if (this.selectedTask?.id === currentActiveTaskId) this.isBotTyping.set(false);
+                }
+              }, 50);
+            }
+          };
+          checkFinish();
         }
       });
     } else {
