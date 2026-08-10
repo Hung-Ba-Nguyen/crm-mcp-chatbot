@@ -29,13 +29,9 @@ public class UsersController : ControllerBase
     [AllowAnonymous]
     public async Task<ActionResult<AuthResponse>> Login([FromBody] LoginRequest request, CancellationToken cancellationToken)
     {
-        // If credentials are missing, perform a quick silent-login using a seeded user.
         if (request is null || string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
         {
-            // Use a seeded developer account from the data seeder for silent login
-            var silentEmail = "dev1@company.com";
-            var silentResponse = await _authService.GenerateTokenForEmailAsync(silentEmail, cancellationToken);
-            return silentResponse is null ? Unauthorized() : Ok(silentResponse);
+            return BadRequest("Email and password are required.");
         }
 
         var authResponse = await _authService.LoginAsync(request, cancellationToken);

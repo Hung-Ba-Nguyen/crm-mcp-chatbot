@@ -145,7 +145,11 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+// Chỉ dùng HTTPS Redirection ở môi trường Local/Development
+if (app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 
 // Hùng edit: Kích hoạt CORS (BẮT BUỘC đặt trước Authentication)
 app.UseCors("AllowAngularApp");
