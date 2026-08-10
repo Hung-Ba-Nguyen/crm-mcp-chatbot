@@ -33,6 +33,7 @@ public class UsersController : ControllerBase
         {
             return BadRequest("Email and password are required.");
         }
+        
 
         var authResponse = await _authService.LoginAsync(request, cancellationToken);
         return authResponse is null ? Unauthorized() : Ok(authResponse);
