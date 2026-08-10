@@ -49,8 +49,7 @@ export interface ChatMessage {
 })
 export class TaskChatComponent implements OnInit, OnDestroy {
   private readonly baseUrl = environment.apiUrl;
-  private readonly userId = '6a709be6af0d8b17ec32592a';
-  private readonly deptId = '6a709be6af0d8b17ec325927';
+  // Department is inferred from the user's JWT on the backend; do not hardcode here
   private http = inject(HttpClient);
   private chatService = inject(ChatService);
   private router = inject(Router) as Router;
@@ -120,7 +119,7 @@ export class TaskChatComponent implements OnInit, OnDestroy {
     this.chatCache.set(currentActiveTaskId, this.messages());
     this.isBotTyping.set(true);
 
-    const requestBody = { Message: prompt, UserId: this.userId, TaskId: currentActiveTaskId, DepartmentId: this.deptId };
+    const requestBody = { Message: prompt, TaskId: currentActiveTaskId };
 
     const hasStream = typeof (this.chatService as any).sendMessageStream === 'function';
     if (hasStream) {
@@ -274,10 +273,12 @@ export class TaskChatComponent implements OnInit, OnDestroy {
   testMcpTools(): void {
     const url = `${this.baseUrl}/mcp`;
 
-    const payload1 = { jsonrpc: '2.0', id: `req-mcp-${Date.now()}-1`, method: 'get_user_tasks', params: { UserId: this.userId } };
+    // Request user tasks via MCP RPC. When running against the live backend with JWT auth,
+    // the server should infer the user from the Authorization token; omit explicit UserId.
+    const payload1 = { jsonrpc: '2.0', id: `req-mcp-${Date.now()}-1`, method: 'get_user_tasks', params: {} };
     this.http.post<any>(url, payload1).subscribe({ next: res => console.log('get_user_tasks', res), error: err => console.error(err) });
 
-    const payload2 = { jsonrpc: '2.0', id: `req-mcp-${Date.now()}-2`, method: 'get_department_kpi', params: { DepartmentId: this.deptId } };
+    const payload2 = { jsonrpc: '2.0', id: `req-mcp-${Date.now()}-2`, method: 'get_department_kpi', params: {} };
     this.http.post<any>(url, payload2).subscribe({ next: res => console.log('get_department_kpi', res), error: err => console.error(err) });
 
     const payload3 = { jsonrpc: '2.0', id: `req-mcp-${Date.now()}-3`, method: 'get_task_chat_history', params: { TaskId: '6a709be7af0d8b17ec32592c' } };
@@ -285,7 +286,8 @@ export class TaskChatComponent implements OnInit, OnDestroy {
   }
 
   loadUserTasks(): void {
-    const url = `${this.baseUrl}/users/${this.userId}/tasks`;
+    // Use the new backend endpoint which infers the user from the Authorization token.
+    const url = `${this.baseUrl}/Tasks`;
     this.http.get<any>(url).subscribe({
       next: (response) => {
         let dataArray: any[] = [];
@@ -294,16 +296,19 @@ export class TaskChatComponent implements OnInit, OnDestroy {
         else if (response && Array.isArray(response.Tasks)) dataArray = response.Tasks;
         else if (response && response.data && Array.isArray(response.data.tasks)) dataArray = response.data.tasks;
         else if (response && response.data && Array.isArray(response.data)) dataArray = response.data;
+        else if (response && Array.isArray(response.result)) dataArray = response.result;
 
-        if (dataArray && dataArray.length > 0) {
-          this.tasks = dataArray.map((t: any) => ({ id: t.id || t.Id, title: t.title || t.Title, status: t.status || t.Status }));
-          try { this.cdr.detectChanges(); } catch { }
-        } else {
-          this.tasks = [];
-          try { this.cdr.detectChanges(); } catch { }
-        }
+        if (!dataArray) dataArray = [];
+
+        this.tasks = dataArray.map((t: any) => ({
+          id: t.id || t.Id || t._id || (t._id && t._id.toString && t._id.toString()) || '',
+          title: t.title || t.Title || t.name || t.Name || '',
+          status: t.status || t.Status || 'Todo'
+        } as Task)).filter(x => x.id);
+
+        try { this.cdr.detectChanges(); } catch { }
       },
-      error: (err) => console.error('Lỗi khi lấy danh sách tasks:', err),
+      error: (err) => console.error('Error fetching tasks:', err),
     });
   }
 
@@ -357,16 +362,17 @@ export class TaskChatComponent implements OnInit, OnDestroy {
 
   // quick KPI tester
   testKpiApi(): void {
-    const url = `${this.baseUrl}/departments/${this.deptId}/kpi`;
+    // Call backend Departments KPI endpoint. Backend should infer department by JWT.
+    const url = `${this.baseUrl}/Departments/kpi`;
     this.http.get<any>(url).subscribe({
       next: response => {
         // store KPI data and show modal instead of blocking alert
         this.kpiData.set({
-          departmentName: response?.departmentName,
-          totalTasks: response?.totalTasks,
-          completedTasks: response?.completedTasks,
-          inProgressTasks: response?.inProgressTasks,
-          completionRate: response?.completionRate,
+          departmentName: response?.departmentName ?? response?.DepartmentName,
+          totalTasks: response?.totalTasks ?? response?.TotalTasks,
+          completedTasks: response?.completedTasks ?? response?.CompletedTasks,
+          inProgressTasks: response?.inProgressTasks ?? response?.InProgressTasks,
+          completionRate: response?.completionRate ?? response?.CompletionRate,
         });
         this.showKpiModal.set(true);
         try { this.cdr.detectChanges(); } catch { }
@@ -391,7 +397,7 @@ export class TaskChatComponent implements OnInit, OnDestroy {
     this.newMessage = '';
     this.isBotTyping.set(true);
 
-    const requestBody = { Message: content, UserId: this.userId, TaskId: currentActiveTaskId, DepartmentId: this.deptId };
+    const requestBody = { Message: content, TaskId: currentActiveTaskId };
 
     // HÀM HELPER CHẠY NGẦM: Cập nhật tin nhắn dù user có đang ở Tab này hay không
     const updateMessageBackground = (chunk: string, isError: boolean = false, isOverwrite: boolean = false) => {
