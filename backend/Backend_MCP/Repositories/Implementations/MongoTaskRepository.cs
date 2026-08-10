@@ -29,6 +29,13 @@ public class MongoTaskRepository : ITaskRepository
         return await _collection.Find(item => item.AssigneeId == assigneeId).ToListAsync(cancellationToken);
     }
 
+    public async Task<List<TaskItem>> GetOverdueAsync(DateTime? now = null, CancellationToken cancellationToken = default)
+    {
+        var referenceTime = now ?? DateTime.UtcNow;
+        return await _collection.Find(item => item.Status != TaskStatus.Completed && item.DueDate < referenceTime)
+            .ToListAsync(cancellationToken);
+    }
+
     public Task CreateAsync(TaskItem taskItem, CancellationToken cancellationToken = default)
     {
         return _collection.InsertOneAsync(taskItem, cancellationToken: cancellationToken);
