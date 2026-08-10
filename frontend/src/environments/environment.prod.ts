@@ -1,4 +1,5 @@
 export const environment = {
   production: true,
-  apiUrl: 'https://api.your-production-host.com/api'
+  apiUrl: 'https://crm-mcp-chatbot.onrender.com/api',
+  hubUrl: 'https://crm-mcp-chatbot.onrender.com'
 };

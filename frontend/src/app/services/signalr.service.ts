@@ -14,8 +14,8 @@ export class SignalRService {
   public startConnection(): void {
     if (this.hubConnection) return;
 
-    const base = environment.apiUrl.replace(/\/api\/?$/, '');
-    const hubUrl = `${base}/notificationHub`;
+    // Use the explicit hubUrl from environment (should not include the /api prefix)
+    const hubUrl = `${environment.hubUrl.replace(/\/$/, '')}/notificationHub`;
 
     this.hubConnection = new HubConnectionBuilder()
       .withUrl(hubUrl, {
