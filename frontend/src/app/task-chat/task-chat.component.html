@@ -30,8 +30,16 @@
     @if (selectedTask) {
     <div class="chat-panel">
       <div class="chat-header">
-        <h3>{{ selectedTask.title }}</h3>
-        <p>Status: {{ selectedTask.status }}</p>
+        <div class="chat-header-inner">
+          <div class="chat-title-group">
+            <h3 style="margin:0">{{ selectedTask.title }}</h3>
+            <span class="status-badge">{{ selectedTask.status }}</span>
+          </div>
+          <button mat-stroked-button color="primary" (click)="summarizeTask()" class="summarize-btn" aria-label="Summarize">
+            <span class="summarize-ico">✨</span>
+            <span class="summarize-text">Summarize</span>
+          </button>
+        </div>
       </div>
 
       <!-- 3. Hiển thị API get_task_chat_history (Control Flow) -->
@@ -48,8 +56,14 @@
         </div>
         }
         } @else {
-        <div style="padding: 16px; text-align: center; color: gray; font-size: 0.9em;">
-          Chưa có dữ liệu chat cho công việc này.
+        <div class="empty-state">
+          <!-- Inline SVG chat bubble to avoid font/icon dependency -->
+          <svg class="empty-ico" width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M20 2H4C2.89543 2 2 2.89543 2 4V18C2 19.1046 2.89543 20 4 20H18L22 24V4C22 2.89543 21.1046 2 20 2Z" fill="#E6EEF8"/>
+            <path d="M7.5 9.5H16.5" stroke="#B6C8DF" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M7.5 12.5H13.5" stroke="#B6C8DF" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <div class="empty-text">Chưa có dữ liệu chat cho công việc này.</div>
         </div>
         }
 
@@ -64,14 +78,12 @@
       </div>
 
       <div class="composer">
-        <mat-form-field appearance="outline" class="composer-field">
-          <mat-label>Message</mat-label>
-          <input matInput [(ngModel)]="newMessage" placeholder="Type your message here..." (keyup.enter)="sendMessage()" />
-        </mat-form-field>
-
-        <button mat-icon-button color="primary" aria-label="Send message" (click)="sendMessage()">
-          <mat-icon>send</mat-icon>
-        </button>
+        <div class="composer-wrapper">
+          <input class="composer-input" [(ngModel)]="newMessage" placeholder="Type your message here..." (keyup.enter)="sendMessage()" aria-label="Message input" />
+          <button class="send-inline" mat-icon-button color="primary" aria-label="Send message" (click)="sendMessage()">
+            <mat-icon>send</mat-icon>
+          </button>
+        </div>
       </div>
     </div>
     } @else {
@@ -80,4 +92,35 @@
     </div>
     }
   </mat-sidenav-content>
+
 </mat-sidenav-container>
+
+@if (showKpiModal()) {
+<div style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); z-index: 2147483647; display: flex; justify-content: center; align-items: center;" (click)="showKpiModal.set(false)">
+  <div style="background: white; border-radius: 16px; padding: 20px 22px; width: 92%; max-width: 520px; box-shadow: 0 20px 40px rgba(2,6,23,0.15); z-index: 2147483648;" (click)="$event.stopPropagation()">
+    <h3 class="kpi-title">KPI Phòng {{ kpiData()?.departmentName }}</h3>
+    <div class="kpi-grid">
+      <div class="kpi-item">
+        <div class="kpi-label">Tổng Task</div>
+        <div class="kpi-value">{{ kpiData()?.totalTasks ?? 0 }}</div>
+      </div>
+      <div class="kpi-item">
+        <div class="kpi-label">Hoàn thành</div>
+        <div class="kpi-value">{{ kpiData()?.completedTasks ?? 0 }}</div>
+      </div>
+      <div class="kpi-item">
+        <div class="kpi-label">Đang làm</div>
+        <div class="kpi-value">{{ kpiData()?.inProgressTasks ?? 0 }}</div>
+      </div>
+      <div class="kpi-item">
+        <div class="kpi-label">Tỷ lệ</div>
+        <div class="kpi-value">{{ kpiData()?.completionRate ?? 0 }}%</div>
+      </div>
+    </div>
+    <div class="kpi-actions">
+      <button class="kpi-close" (click)="showKpiModal.set(false)">Đóng</button>
+    </div>
+  </div>
+</div>
+
+}
