@@ -1,29 +1,22 @@
-# Stage 1: Base Runtime (Chạy trên Linux)
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
-WORKDIR /app
-EXPOSE 8080
-EXPOSE 8081
-
-# Stage 2: Build SDK
+# Stage 1: Build
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
-ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 
-# Copy duy nhất file csproj vào để restore nuget
+# Copy csproj va restore dependencies
 COPY ["Backend_MCP.csproj", "./"]
 RUN dotnet restore "Backend_MCP.csproj"
 
-# Copy toàn bộ source code vào
+# Copy toan bo source code va publish
 COPY . .
-RUN dotnet build "Backend_MCP.csproj" -c $BUILD_CONFIGURATION -o /app/build
+RUN dotnet publish "Backend_MCP.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
-# Stage 3: Publish
-FROM build AS publish
-ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "Backend_MCP.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
-
-# Stage 4: Final Image
-FROM base AS final
+# Stage 2: Runtime
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
 WORKDIR /app
-COPY --from=publish /app/publish .
+COPY --from=build /app/publish .
+
+# Cấu hình để ASP.NET Core lắng nghe đúng cổng PORT do Render cấp phát
+ENV DOTNET_USE_POLLING_FILE_WATCHER=true
+ENV ASPNETCORE_URLS=http://+:${PORT:-8080}
+
 ENTRYPOINT ["dotnet", "Backend_MCP.dll"]

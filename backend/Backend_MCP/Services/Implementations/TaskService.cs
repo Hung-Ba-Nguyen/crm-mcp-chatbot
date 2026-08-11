@@ -3,10 +3,12 @@ namespace Backend_MCP.Services.Implementations;
 public class TaskService : ITaskService
 {
     private readonly ITaskRepository _taskRepository;
+    private readonly IUserRepository _userRepository;
 
-    public TaskService(ITaskRepository taskRepository)
+    public TaskService(ITaskRepository taskRepository, IUserRepository userRepository)
     {
         _taskRepository = taskRepository;
+        _userRepository = userRepository;
     }
 
     public async Task<List<TaskItemResponse>> GetAllAsync(CancellationToken cancellationToken = default)
@@ -72,6 +74,83 @@ public class TaskService : ITaskService
 
         await _taskRepository.ReplaceAsync(task, cancellationToken);
         return TaskItemResponse.FromEntity(task);
+    }
+
+    public async Task<TaskItemResponse?> UpdateStatusAsync(string id, TaskStatus status, CancellationToken cancellationToken = default)
+    {
+        var task = await _taskRepository.GetByIdAsync(id, cancellationToken);
+        if (task is null)
+        {
+            return null;
+        }
+
+        task.Status = status;
+        task.CompletedAt = status == TaskStatus.Completed ? DateTime.UtcNow : null;
+
+        await _taskRepository.ReplaceAsync(task, cancellationToken);
+        return TaskItemResponse.FromEntity(task);
+    }
+
+    public async Task<List<TaskItemResponse>> GetOverdueAsync(string? departmentId = null, int? limit = null, CancellationToken cancellationToken = default)
+    {
+        var overdueTasks = await _taskRepository.GetOverdueAsync(cancellationToken: cancellationToken);
+
+        if (!string.IsNullOrWhiteSpace(departmentId))
+        {
+            overdueTasks = overdueTasks.Where(task => task.DepartmentId == departmentId).ToList();
+        }
+
+        if (limit.HasValue && limit.Value > 0)
+        {
+            overdueTasks = overdueTasks.Take(limit.Value).ToList();
+        }
+
+        return overdueTasks.Select(TaskItemResponse.FromEntity).ToList();
+    }
+
+    public async Task<List<WorkloadSummaryResponse>> GetWorkloadSummaryAsync(GetWorkloadSummaryRequest request, CancellationToken cancellationToken = default)
+    {
+        var now = DateTime.UtcNow;
+        var tasks = new List<TaskItem>();
+
+        if (!string.IsNullOrWhiteSpace(request.UserId))
+        {
+            tasks = await _taskRepository.GetByAssigneeIdAsync(request.UserId, cancellationToken);
+        }
+        else if (!string.IsNullOrWhiteSpace(request.DepartmentId))
+        {
+            tasks = await _taskRepository.GetByDepartmentIdAsync(request.DepartmentId, cancellationToken);
+        }
+        else
+        {
+            tasks = await _taskRepository.GetAllAsync(cancellationToken);
+        }
+
+        var grouped = tasks
+            .Where(task => !string.IsNullOrWhiteSpace(task.AssigneeId))
+            .GroupBy(task => task.AssigneeId!)
+            .Select(async group =>
+            {
+                var user = await _userRepository.GetByIdAsync(group.Key, cancellationToken);
+                var userTasks = group.ToList();
+                var completed = userTasks.Count(task => task.Status == TaskStatus.Completed);
+                var inProgress = userTasks.Count(task => task.Status == TaskStatus.InProgress);
+                var overdue = userTasks.Count(task => task.Status != TaskStatus.Completed && task.DueDate < now);
+
+                return new WorkloadSummaryResponse
+                {
+                    UserId = group.Key,
+                    UserName = user?.FullName ?? string.Empty,
+                    TotalTasks = userTasks.Count,
+                    CompletedTasks = completed,
+                    InProgressTasks = inProgress,
+                    OverdueTasks = overdue,
+                    CompletionRate = userTasks.Count == 0 ? 0 : Math.Round((decimal)completed * 100 / userTasks.Count, 2)
+                };
+            });
+
+        var results = await Task.WhenAll(grouped);
+        return results.OrderByDescending(item => item.TotalTasks).ToList();
     }
 
     public async Task<TaskItemResponse?> AssignAsync(string id, AssignTaskRequest request, CancellationToken cancellationToken = default)

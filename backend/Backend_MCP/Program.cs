@@ -5,8 +5,23 @@ using MongoDB.Driver;
 using Microsoft.Extensions.Options;
 using System.Text;
 
+var options = new WebApplicationOptions
+{
+    Args = args
+};
 
-var builder = WebApplication.CreateBuilder(args);
+// Khởi tạo builder
+var builder = WebApplication.CreateBuilder(options);
+
+// Tắt FileSystemWatcher cho các cấu hình JSON
+builder.Host.ConfigureAppConfiguration((hostingContext, config) =>
+{
+    foreach (var source in config.Sources.OfType<Microsoft.Extensions.Configuration.Json.JsonConfigurationSource>())
+    {
+        source.ReloadOnChange = false; // Vô hiệu hóa inotify watcher
+    }
+});
+
 
 // Add services to the container.
 builder.Services.AddControllers();
@@ -134,7 +149,11 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+// Chỉ dùng HTTPS Redirection ở môi trường Local/Development
+if (app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 
 // Hùng edit: Kích hoạt CORS (BẮT BUỘC đặt trước Authentication)
 app.UseCors("AllowAngularApp");

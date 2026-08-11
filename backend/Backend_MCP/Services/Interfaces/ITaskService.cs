@@ -14,6 +14,12 @@ public interface ITaskService
 
     Task<TaskItemResponse?> UpdateAsync(string id, UpdateTaskRequest request, CancellationToken cancellationToken = default);
 
+    Task<TaskItemResponse?> UpdateStatusAsync(string id, TaskStatus status, CancellationToken cancellationToken = default);
+
+    Task<List<TaskItemResponse>> GetOverdueAsync(string? departmentId = null, int? limit = null, CancellationToken cancellationToken = default);
+
+    Task<List<WorkloadSummaryResponse>> GetWorkloadSummaryAsync(GetWorkloadSummaryRequest request, CancellationToken cancellationToken = default);
+
     Task<TaskItemResponse?> AssignAsync(string id, AssignTaskRequest request, CancellationToken cancellationToken = default);
 
     Task<bool> DeleteAsync(string id, CancellationToken cancellationToken = default);
