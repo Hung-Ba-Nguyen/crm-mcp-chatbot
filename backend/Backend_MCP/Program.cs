@@ -106,13 +106,17 @@ builder.Services.AddSwaggerGen(options =>
 // Hùng edit: Đăng ký chính sách CORS cho phép Angular gọi API
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAngularApp",
-        policy => policy.WithOrigins(
-                        "http://localhost:4200", 
-                        "https://crm-mcp-chatbot.vercel.app"
-                   )
-                        .AllowAnyHeader()
-                        .AllowAnyMethod());
+    options.AddPolicy("AllowAngularApp", policy =>
+    {
+        policy.SetIsOriginAllowed(origin =>
+            // Cho phép localhost để test dưới máy
+            origin.StartsWith("http://localhost") ||
+            // Cho phép tất cả các domain con kết thúc bằng .vercel.app
+            origin.EndsWith(".vercel.app"))
+        .AllowAnyHeader()
+        .AllowAnyMethod()
+        .AllowCredentials(); // BẮT BUỘC phải có để chạy SignalR / WebSockets
+    });
 });
 
 var app = builder.Build();
