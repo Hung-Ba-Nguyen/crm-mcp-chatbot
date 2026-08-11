@@ -10,15 +10,18 @@ public class McpToolService : IMcpToolService
     private readonly IDepartmentService _departmentService;
     private readonly ITaskChatService _taskChatService;
     private readonly IUserService _userService;
+    private readonly ITaskService _taskService;
 
     public McpToolService(
         IDepartmentService departmentService,
         ITaskChatService taskChatService,
-        IUserService userService)
+        IUserService userService,
+        ITaskService taskService)
     {
         _departmentService = departmentService;
         _taskChatService = taskChatService;
         _userService = userService;
+        _taskService = taskService;
     }
 
     public async Task<JsonRpcResponse> HandleAsync(JsonRpcRequest request, CancellationToken cancellationToken = default)
@@ -30,6 +33,7 @@ public class McpToolService : IMcpToolService
                 "get_user_tasks" => await HandleUsersTasksAsync(request, cancellationToken),
                 "get_department_kpi" => await HandleDepartmentKpiAsync(request, cancellationToken),
                 "get_task_chat_history" => await HandleChatHistoryAsync(request, cancellationToken),
+                "assign_task" => await HandleAssignTaskAsync(request, cancellationToken),
                 _ => JsonRpcResponse.Failure(-32601, $"Method not found: {request.Method}", request.Id)
             };
         }
@@ -37,6 +41,29 @@ public class McpToolService : IMcpToolService
         {
             return JsonRpcResponse.Failure(-32603, exception.Message, request.Id);
         }
+    }
+
+    private async Task<JsonRpcResponse> HandleAssignTaskAsync(JsonRpcRequest request, CancellationToken cancellationToken)
+    {
+        if (request.Parameters is null)
+        {
+            return JsonRpcResponse.Failure(-32602, "Invalid params", request.Id);
+        }
+
+        var parameters = request.Parameters.Value;
+        if (!parameters.TryGetProperty("taskId", out var taskIdProp) || string.IsNullOrWhiteSpace(taskIdProp.GetString()))
+        {
+            return JsonRpcResponse.Failure(-32602, "Invalid params: missing taskId", request.Id);
+        }
+
+        var assignRequest = DeserializeParameter<AssignTaskRequest>(parameters);
+        if (assignRequest is null)
+        {
+            return JsonRpcResponse.Failure(-32602, "Invalid params", request.Id);
+        }
+
+        var result = await _taskService.AssignAsync(taskIdProp.GetString()!, assignRequest, cancellationToken);
+        return JsonRpcResponse.Success(result, request.Id);
     }
 
     private async Task<JsonRpcResponse> HandleDepartmentKpiAsync(JsonRpcRequest request, CancellationToken cancellationToken)
@@ -131,6 +158,22 @@ public class McpToolService : IMcpToolService
                                 }
                             },
                             required = new[] { "userId" }
+                        }
+                    },
+                    new
+                    {
+                        name = "assign_task",
+                        description = "Gán người thực hiện và giám sát cho một task theo taskId.",
+                        parameters = new
+                        {
+                            type = "object",
+                            properties = new
+                            {
+                                taskId = new { type = "string", description = "ID của task cần gán" },
+                                assigneeId = new { type = "string", description = "ID của người được giao (assignee)" },
+                                supervisorIds = new { type = "array", items = new { type = "string" }, description = "Danh sách ID người giám sát" }
+                            },
+                            required = new[] { "taskId" }
                         }
                     }
                 }
