@@ -33,6 +33,7 @@ public class McpToolService : IMcpToolService
                 "get_user_tasks" => await HandleUsersTasksAsync(request, cancellationToken),
                 "get_department_kpi" => await HandleDepartmentKpiAsync(request, cancellationToken),
                 "get_task_chat_history" => await HandleChatHistoryAsync(request, cancellationToken),
+                "assign_task" => await HandleAssignTaskAsync(request, cancellationToken),
                 "create_task" => await HandleCreateTaskAsync(request, cancellationToken),
                 "update_task_status" => await HandleUpdateTaskStatusAsync(request, cancellationToken),
                 "get_overdue_tasks" => await HandleOverdueTasksAsync(request, cancellationToken),
@@ -44,6 +45,29 @@ public class McpToolService : IMcpToolService
         {
             return JsonRpcResponse.Failure(-32603, exception.Message, request.Id);
         }
+    }
+
+    private async Task<JsonRpcResponse> HandleAssignTaskAsync(JsonRpcRequest request, CancellationToken cancellationToken)
+    {
+        if (request.Parameters is null)
+        {
+            return JsonRpcResponse.Failure(-32602, "Invalid params", request.Id);
+        }
+
+        var parameters = request.Parameters.Value;
+        if (!parameters.TryGetProperty("taskId", out var taskIdProp) || string.IsNullOrWhiteSpace(taskIdProp.GetString()))
+        {
+            return JsonRpcResponse.Failure(-32602, "Invalid params: missing taskId", request.Id);
+        }
+
+        var assignRequest = DeserializeParameter<AssignTaskRequest>(parameters);
+        if (assignRequest is null)
+        {
+            return JsonRpcResponse.Failure(-32602, "Invalid params", request.Id);
+        }
+
+        var result = await _taskService.AssignAsync(taskIdProp.GetString()!, assignRequest, cancellationToken);
+        return JsonRpcResponse.Success(result, request.Id);
     }
 
     private async Task<JsonRpcResponse> HandleDepartmentKpiAsync(JsonRpcRequest request, CancellationToken cancellationToken)
@@ -189,6 +213,22 @@ public class McpToolService : IMcpToolService
                     },
                     new
                     {
+                        name = "assign_task",
+                        description = "Gán người thực hiện và giám sát cho một task theo taskId.",
+                        parameters = new
+                        {
+                            type = "object",
+                            properties = new
+                            {
+                                taskId = new { type = "string", description = "ID của task cần gán" },
+                                assigneeId = new { type = "string", description = "ID của người được giao (assignee)" },
+                                supervisorIds = new { type = "array", items = new { type = "string" }, description = "Danh sách ID người giám sát" }
+                            },
+                            required = new[] { "taskId" }
+                        }
+                    }, // ĐÃ THÊM DẤU PHẨY CHIA TÁCH 2 TOOL
+                    new
+                    {
                         name = "create_task",
                         description = "Tạo mới một task với thông tin tiêu đề, mô tả, phòng ban, người được giao và hạn hoàn thành.",
                         parameters = new
@@ -200,7 +240,7 @@ public class McpToolService : IMcpToolService
                                 description = new { type = "string", description = "Mô tả công việc" },
                                 departmentId = new { type = "string", description = "ID phòng ban phụ trách" },
                                 assigneeId = new { type = "string", description = "ID người được giao" },
-                                supervisorIds = new { type = "array", description = "Danh sách ID người giám sát" },
+                                supervisorIds = new { type = "array", items = new { type = "string" }, description = "Danh sách ID người giám sát" },
                                 dueDate = new { type = "string", description = "Hạn hoàn thành theo định dạng ISO 8601" },
                                 priority = new { type = "string", description = "Độ ưu tiên, ví dụ Low, Medium, High, Critical" }
                             },
