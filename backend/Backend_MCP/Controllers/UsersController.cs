@@ -39,6 +39,19 @@ public class UsersController : ControllerBase
         return authResponse is null ? Unauthorized() : Ok(authResponse);
     }
 
+    [HttpPost("refresh")]
+    [AllowAnonymous]
+    public async Task<ActionResult<AuthResponse>> Refresh([FromBody] RefreshTokenRequest request, CancellationToken cancellationToken)
+    {
+        if (request is null || string.IsNullOrWhiteSpace(request.RefreshToken))
+        {
+            return BadRequest("Refresh token is required.");
+        }
+
+        var authResponse = await _authService.RefreshTokenAsync(request.RefreshToken, cancellationToken);
+        return authResponse is null ? Unauthorized() : Ok(authResponse);
+    }
+
     [HttpGet]
     [Authorize]
     public async Task<ActionResult<List<User>>> GetAll(CancellationToken cancellationToken)
