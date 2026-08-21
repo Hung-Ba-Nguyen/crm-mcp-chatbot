@@ -23,4 +23,9 @@ public class User
 
     [BsonDateTimeOptions(Kind = DateTimeKind.Utc)]
     public DateTime CreatedAt { get; set; }
+
+    public string? RefreshTokenHash { get; set; }
+
+    [BsonDateTimeOptions(Kind = DateTimeKind.Utc)]
+    public DateTime? RefreshTokenExpiresAtUtc { get; set; }
 }
