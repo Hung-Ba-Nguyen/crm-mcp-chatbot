@@ -1,8 +1,15 @@
+<nav class="main-nav" role="navigation" aria-label="Main navigation">
+  <a [routerLink]="['/']" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">Home</a>
+  <a [routerLink]="['/create-task']" routerLinkActive="active">Tạo Task</a>
+  <a [routerLink]="['/dashboard']" routerLinkActive="active">Workload Dashboard</a>
+  <a [routerLink]="['/update-status']" routerLinkActive="active">Cập nhật Task</a>
+</nav>
+
 <router-outlet></router-outlet>
 
 <!-- Toast layer -->
 <app-toast></app-toast>
-<app-task-chat></app-task-chat>
+
 
 <!-- Daily Briefing (control-flow) -->
 @if (showDaily()) {

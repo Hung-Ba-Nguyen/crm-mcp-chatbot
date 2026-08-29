@@ -1,0 +1,102 @@
+<div class="page">
+  <div class="card">
+    <h3>Workload Dashboard</h3>
+
+    @if (errorMessage()) {
+      <div class="alert alert-error">{{ errorMessage() }}</div>
+    }
+
+    @if (successMessage()) {
+      <div class="alert alert-success">{{ successMessage() }}</div>
+    }
+
+    <form [formGroup]="form" (ngSubmit)="load()" class="task-form">
+      <div style="display:flex;gap:16px;align-items:center;margin-bottom:12px;">
+        <label style="display:inline-flex;align-items:center;gap:8px;">
+          <input type="radio" formControlName="searchType" value="department" />
+          <span>Search by Department</span>
+        </label>
+        <label style="display:inline-flex;align-items:center;gap:8px;">
+          <input type="radio" formControlName="searchType" value="user" />
+          <span>Search by User</span>
+        </label>
+      </div>
+
+      @if (form.get('searchType')?.value === 'department') {
+        <div class="form-row">
+          <label>Department ID</label>
+          <input class="input" formControlName="departmentId" />
+        </div>
+      }
+
+      @if (form.get('searchType')?.value === 'user') {
+        <div class="form-row">
+          <label>User ID</label>
+          <input class="input" formControlName="userId" />
+        </div>
+      }
+
+      <div class="form-actions">
+        <button type="submit" [disabled]="isLoading()" class="btn-primary">Load Data</button>
+      </div>
+    </form>
+
+    @if (isLoading()) {
+      <div class="loading">Loading...</div>
+    }
+
+    <section>
+      <h4>Overdue Tasks</h4>
+
+      @if (overdueTasks().length === 0 && !isLoading()) {
+        <p>No overdue tasks found.</p>
+      }
+
+      <ul class="overdue-list">
+        @for (t of overdueTasks(); track t.Id) {
+          <li>
+            <strong>{{ t.Title }}</strong>
+            <div>Due: {{ t.DueDate }} — Assignee: {{ t.AssigneeId }}</div>
+          </li>
+        } @empty {
+          <li>No overdue tasks found.</li>
+        }
+      </ul>
+    </section>
+
+    <section style="margin-top:16px;">
+      <h4>Workload Summary</h4>
+
+      <div style="overflow-x:auto;">
+        <table class="workload-table">
+          <thead>
+            <tr>
+              <th>User</th>
+              <th>Total</th>
+              <th>Completed</th>
+              <th>In Progress</th>
+              <th>Overdue</th>
+              <th>Completion Rate</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (w of workloadSummaries(); track w.UserId) {
+              <tr>
+                <td>{{ w.UserName }} ({{ w.UserId }})</td>
+                <td>{{ w.TotalTasks }}</td>
+                <td>{{ w.CompletedTasks }}</td>
+                <td>{{ w.InProgressTasks }}</td>
+                <td>{{ w.OverdueTasks }}</td>
+                <td>{{ w.CompletionRate }}%</td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="6">No workload data.</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</div>

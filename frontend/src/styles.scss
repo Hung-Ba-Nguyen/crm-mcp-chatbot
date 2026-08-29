@@ -7,6 +7,4 @@ html, body {
   background: #f4f7fb;
 }
 
-body {
-  overflow: hidden;
-}
+/* Removed global overflow: hidden so page scrolling and sticky nav work correctly */
