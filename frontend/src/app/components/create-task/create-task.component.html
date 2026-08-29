@@ -1,0 +1,66 @@
+<div class="page">
+  <div class="card">
+    <h3>Create Task</h3>
+
+    @if (errorMessage()) {
+      <div class="alert alert-error">Error: {{ errorMessage() }}</div>
+    }
+
+    @if (successMessage()) {
+      <div class="alert alert-success">{{ successMessage() }}</div>
+    }
+
+    <form [formGroup]="form" (ngSubmit)="submit()" class="task-form">
+      <div class="form-row">
+        <label>Title</label>
+        <input class="input" formControlName="title" />
+      </div>
+
+      <div class="form-row">
+        <label>Description</label>
+        <textarea class="input" formControlName="description" rows="2"></textarea>
+      </div>
+
+      <div class="grid-2">
+        <div class="form-row">
+          <label>Department ID</label>
+          <input class="input" formControlName="departmentId" />
+        </div>
+
+        <div class="form-row">
+          <label>Assignee ID</label>
+          <input class="input" formControlName="assigneeId" />
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="form-row">
+          <label>Due Date</label>
+          <input type="date" class="input" formControlName="dueDate" />
+        </div>
+
+        <div class="form-row">
+          <label>Priority</label>
+          <select class="input" formControlName="priority">
+            <option value="Low">Low</option>
+            <option value="Medium">Medium</option>
+            <option value="High">High</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <label>Supervisor IDs (comma separated)</label>
+        <input class="input" formControlName="supervisorIds" />
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" [disabled]="isLoading()" class="btn-primary">Create</button>
+      </div>
+    </form>
+
+    @if (isLoading()) {
+      <div class="loading">Creating task...</div>
+    }
+  </div>
+</div>

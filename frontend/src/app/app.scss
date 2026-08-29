@@ -1,0 +1,57 @@
+/* Main navigation styles (plain CSS, no Tailwind) */
+.root-vars {
+  /* placeholder class to document nav height variable; actual variable set on :root for global use */
+}
+:root {
+  --nav-height: 64px;
+}
+.main-nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center; /* center links horizontally */
+  background: #ffffff;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.06);
+  padding: 12px 24px;
+}
+
+.main-nav a {
+  text-decoration: none;
+  color: #374151; /* gray-700 */
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  margin: 0 12px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  transition: color 180ms ease, background-color 180ms ease, transform 120ms ease;
+  display: inline-block;
+}
+
+.main-nav a:hover,
+.main-nav a:focus {
+  color: #6a5acd;
+  background-color: rgba(106,90,205,0.06);
+  outline: none;
+  transform: translateY(-1px);
+}
+
+/* Support Angular routerLinkActive (class applied by router) and generic "active" class */
+.main-nav a.router-link-active,
+.main-nav a.active {
+  color: #6a5acd;
+  font-weight: 600;
+  background-color: rgba(106,90,205,0.08);
+}
+
+/* Smaller screens: allow wrapping */
+@media (max-width: 520px) {
+  .main-nav {
+    padding: 10px 12px;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .main-nav a { margin: 6px; }
+}
+

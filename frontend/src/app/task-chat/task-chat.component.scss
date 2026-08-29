@@ -1,16 +1,24 @@
 :host {
-  display: block;
-  height: 100vh;
+  /* Fixed-height layout adjusted to actual navbar height */
+  height: calc(100vh - 64px);
+  display: flex;
+  width: 100%;
+  overflow: hidden;
 }
 
 .task-shell {
+  /* Root shell occupying host; overall background */
   height: 100%;
+  width: 100%;
+  display: flex;
   background: #f4f7fb;
 }
 
 .task-sidenav {
-  width: 30%;
-  min-width: 280px;
+  /* Wider fixed-width sidebar that scrolls independently */
+  flex: 0 0 380px;
+  height: 100%;
+  overflow-y: auto;
   background: #ffffff;
   border-right: 1px solid #e2e8f0;
 }
@@ -40,19 +48,28 @@ mat-nav-list a.active {
 .main-content {
   display: flex;
   flex-direction: column;
+  /* main content occupies remaining space */
+  flex: 1 1 auto;
   height: 100%;
-  padding: 1rem;
+  min-height: 0;
+  /* remove bottom padding so chat panel sits flush with host bottom */
+  padding: 1rem 1rem 0 1rem;
   box-sizing: border-box;
 }
 
 .chat-panel {
+  /* Right-side chat area */
+  flex: 1;
+  height: 100%;
   display: flex;
   flex-direction: column;
-  height: 100%;
+  overflow: hidden;
   background: #ffffff;
   border-radius: 1rem;
-  overflow: hidden;
   box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+  /* ensure no extra space at bottom */
+  margin-bottom: 0;
+  padding-bottom: 0;
 }
 
 .chat-header {
@@ -106,8 +123,7 @@ mat-nav-list a.active {
 }
 
 .messages-list {
-  flex: 1 1 auto;
-  min-height: 0;
+  flex: 1;
   overflow-y: auto;
   padding: 1rem;
   display: flex;
@@ -172,18 +188,11 @@ mat-nav-list a.active {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 1rem;
+  /* reduced padding and no external margin so composer sits flush to panel bottom */
+  padding: 10px 12px;
+  margin: 0;
   border-top: 1px solid #e2e8f0;
   background: #ffffff;
-}
-
-/* floating input container */
-
-.composer {
-  display: flex;
-  align-items: center;
-  padding: 12px;
-  margin: 12px;
   box-sizing: border-box;
 }
 
