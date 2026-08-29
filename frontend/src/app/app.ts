@@ -1,5 +1,5 @@
 
-import { RouterModule } from '@angular/router';
+import { RouterModule, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject, signal, afterNextRender, Injector, runInInjectionContext } from '@angular/core';
 import { SignalRService } from './services/signalr.service';
@@ -24,6 +24,16 @@ export class App implements OnInit {
   private auth = inject(AuthService);
   private signalR = inject(SignalRService);
   private injector = inject(Injector);
+  private router = inject(Router);
+
+  get isLoginPage(): boolean {
+    try {
+      const url = String(this.router.url || '');
+      return url === '/login' || url.includes('/login');
+    } catch {
+      return false;
+    }
+  }
 
   ngOnInit(): void {
     try {
