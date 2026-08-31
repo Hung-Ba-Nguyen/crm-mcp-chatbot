@@ -1,6 +1,7 @@
 import { Component, EventEmitter, Output, signal, OnInit, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { environment } from '../../environments/environment';
+import { TaskRpcService } from '../services/task-rpc.service';
 
 export interface BriefItem {
   id: string;
@@ -62,6 +63,7 @@ export class DailyBriefingComponent implements OnInit {
   isLoading = signal(true);
 
   private http = inject(HttpClient);
+  private taskRpc = inject(TaskRpcService);
 
   ngOnInit(): void {
     this.loadBriefing();
@@ -89,17 +91,8 @@ export class DailyBriefingComponent implements OnInit {
     const deptFromToken = this.decodeDepartmentIdFromToken(token);
     const deptId = deptFromToken ?? '6a709be6af0d8b17ec325927';
 
-    const url = `${environment.apiUrl}/mcp`;
-    const payload = {
-      jsonrpc: '2.0',
-      id: `db-${Date.now()}`,
-      method: 'get_department_kpi',
-      params: { DepartmentId: deptId }
-    };
-
-    this.http.post<any>(url, payload).subscribe({
-      next: (res) => {
-        const result = res?.result || res?.Result || res || {};
+    this.taskRpc.rpc<any>('get_department_kpi', { DepartmentId: deptId }).subscribe({
+      next: (result) => {
         const overdue = result.overdueTasks ?? result.OverdueTasks ?? result.overdue ?? result.overdueCount ?? null;
         const total = result.totalTasks ?? result.TotalTasks ?? result.total ?? null;
         const completion = result.completionRate ?? result.CompletionRate ?? null;

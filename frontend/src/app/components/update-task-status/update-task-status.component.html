@@ -1,6 +1,6 @@
 <div class="page">
   <div class="card">
-    <h3>Update Task Status</h3>
+    <h3>{{ ui.translate('title.updateTask') }}</h3>
 
     @if (errorMessage()) {
       <div class="alert alert-error">{{ errorMessage() }}</div>
@@ -12,26 +12,27 @@
 
     <form [formGroup]="form" (ngSubmit)="submit()" class="task-form">
       <div class="form-row">
-        <label>Task ID</label>
-        <input class="input" formControlName="taskId" />
+        <label>{{ ui.translate('label.taskId') }}</label>
+        <input class="input" formControlName="taskId" placeholder="{{ ui.translate('label.taskId') }}" />
       </div>
 
       <div class="form-row">
-        <label>Status</label>
+        <label>{{ ui.translate('label.status') }}</label>
         <select class="input" formControlName="status">
-          <option value="Todo">Todo</option>
-          <option value="InProgress">InProgress</option>
-          <option value="Completed">Completed</option>
+          <option value="Todo">{{ ui.translate('kanban.todo') }}</option>
+          <option value="InProgress">{{ ui.translate('kanban.inProgress') }}</option>
+          <option value="Completed">{{ ui.translate('kanban.completed') }}</option>
+          <option value="Cancelled">{{ ui.translate('kanban.cancelled') }}</option>
         </select>
       </div>
 
       <div class="form-actions">
-        <button type="submit" [disabled]="isLoading()" class="btn-primary">Update</button>
+        <button type="submit" [disabled]="isLoading()" class="btn-primary">{{ ui.translate('btn.updateStatus') }}</button>
       </div>
     </form>
 
     @if (isLoading()) {
-      <div class="loading">Updating...</div>
+      <div class="loading">{{ ui.translate('updating') }}</div>
     }
   </div>
 </div>
