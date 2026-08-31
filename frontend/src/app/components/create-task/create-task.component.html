@@ -1,66 +1,132 @@
-<div class="page">
-  <div class="card">
-    <h3>Create Task</h3>
+<style>
+  .create-task-container input,
+  .create-task-container textarea,
+  .create-task-container select {
+    width: 100%;
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1.5px solid #cbd5e1;
+    font-size: 0.9rem;
+    color: #0f172a;
+    background: #ffffff;
+    box-sizing: border-box;
+    outline: none;
+    transition: all 0.2s ease-in-out;
+  }
 
-    @if (errorMessage()) {
-      <div class="alert alert-error">Error: {{ errorMessage() }}</div>
+  .create-task-container select {
+    cursor: pointer;
+  }
+
+    .create-task-container input:focus,
+    .create-task-container textarea:focus,
+    .create-task-container select:focus {
+      border-color: #6366f1 !important;
+      box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15) !important;
     }
 
-    @if (successMessage()) {
-      <div class="alert alert-success">{{ successMessage() }}</div>
+  .create-task-container .input-error {
+    border-color: #ef4444 !important;
+    background-color: #fef2f2 !important;
+  }
+
+    .create-task-container .input-error:focus {
+      box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.15) !important;
     }
 
-    <form [formGroup]="form" (ngSubmit)="submit()" class="task-form">
-      <div class="form-row">
-        <label>Title</label>
-        <input class="input" formControlName="title" />
+  .create-task-container textarea {
+    font-family: inherit;
+    resize: vertical;
+  }
+</style>
+
+<div style="min-height: calc(100vh - 75px); display: flex; align-items: center; justify-content: center; padding: 16px; box-sizing: border-box; background: #f8fafc;">
+  <div class="create-task-container" style="width: 100%; max-width: 720px; background: #ffffff; border-radius: 12px; padding: 24px 30px; box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08); border: 1px solid #e2e8f0; box-sizing: border-box;">
+
+    <h2 style="margin: 0 0 18px 0; font-size: 1.35rem; font-weight: 700; color: #0f172a; text-align: center;">
+      Tạo Task mới
+    </h2>
+
+    <form (ngSubmit)="submit()" #taskNgForm="ngForm" novalidate>
+      <!-- Title -->
+      <div class="form-group" style="margin-bottom: 12px;">
+        <label style="display: block; margin-bottom: 4px; font-weight: 600; font-size: 0.85rem; color: #334155;">
+          Tiêu đề Task <span style="color: #ef4444;">*</span>
+        </label>
+        <input type="text" name="title" [(ngModel)]="taskForm.title" [class.input-error]="hasFieldError('title')" placeholder="Nhập tiêu đề task...">
       </div>
 
-      <div class="form-row">
-        <label>Description</label>
-        <textarea class="input" formControlName="description" rows="2"></textarea>
+      <!-- Description -->
+      <div class="form-group" style="margin-bottom: 12px;">
+        <label style="display: block; margin-bottom: 4px; font-weight: 600; font-size: 0.85rem; color: #334155;">
+          Mô tả chi tiết
+        </label>
+        <textarea name="description" [(ngModel)]="taskForm.description" placeholder="Nhập mô tả task..." rows="2"></textarea>
       </div>
 
-      <div class="grid-2">
-        <div class="form-row">
-          <label>Department ID</label>
-          <input class="input" formControlName="departmentId" />
+      <!-- Department & Assignee -->
+      <div style="display: flex; gap: 14px; margin-bottom: 12px;">
+        <div class="form-group" style="flex: 1;">
+          <label style="display: block; margin-bottom: 4px; font-weight: 600; font-size: 0.85rem; color: #334155;">
+            Phòng ban phụ trách <span style="color: #ef4444;">*</span>
+          </label>
+          <select name="departmentId" [(ngModel)]="taskForm.departmentId" [class.input-error]="hasFieldError('departmentId')">
+            <option value="" disabled selected>-- Chọn Phòng Ban --</option>
+            @for (dept of departments; track dept.id) {
+            <option [value]="dept.id">{{ dept.name }} ({{ dept.id }})</option>
+            }
+          </select>
         </div>
 
-        <div class="form-row">
-          <label>Assignee ID</label>
-          <input class="input" formControlName="assigneeId" />
-        </div>
-      </div>
-
-      <div class="grid-2">
-        <div class="form-row">
-          <label>Due Date</label>
-          <input type="date" class="input" formControlName="dueDate" />
-        </div>
-
-        <div class="form-row">
-          <label>Priority</label>
-          <select class="input" formControlName="priority">
-            <option value="Low">Low</option>
-            <option value="Medium">Medium</option>
-            <option value="High">High</option>
+        <div class="form-group" style="flex: 1;">
+          <label style="display: block; margin-bottom: 4px; font-weight: 600; font-size: 0.85rem; color: #334155;">
+            Người phụ trách chính <span style="color: #ef4444;">*</span>
+          </label>
+          <select name="assigneeId" [(ngModel)]="taskForm.assigneeId" [class.input-error]="hasFieldError('assigneeId')">
+            <option value="" disabled selected>-- Chọn Người Phụ Trách --</option>
+            @for (user of users; track user.id) {
+            <option [value]="user.id">{{ user.name }} ({{ user.id }})</option>
+            }
           </select>
         </div>
       </div>
 
-      <div class="form-row">
-        <label>Supervisor IDs (comma separated)</label>
-        <input class="input" formControlName="supervisorIds" />
+      <!-- Due Date & Priority -->
+      <div style="display: flex; gap: 14px; margin-bottom: 12px;">
+        <div class="form-group" style="flex: 1;">
+          <label style="display: block; margin-bottom: 4px; font-weight: 600; font-size: 0.85rem; color: #334155;">
+            Hạn hoàn thành <span style="color: #ef4444;">*</span>
+          </label>
+          <input type="date" name="dueDate" [(ngModel)]="taskForm.dueDate" [class.input-error]="hasFieldError('dueDate')">
+        </div>
+        <div class="form-group" style="flex: 1;">
+          <label style="display: block; margin-bottom: 4px; font-weight: 600; font-size: 0.85rem; color: #334155;">
+            Độ ưu tiên
+          </label>
+          <select name="priority" [(ngModel)]="taskForm.priority">
+            <option value="Low">Thấp</option>
+            <option value="Medium">Trung bình</option>
+            <option value="High">Cao</option>
+          </select>
+        </div>
       </div>
 
-      <div class="form-actions">
-        <button type="submit" [disabled]="isLoading()" class="btn-primary">Create</button>
+      <!-- Supervisor Dropdown -->
+      <div class="form-group" style="margin-bottom: 20px;">
+        <label style="display: block; margin-bottom: 4px; font-weight: 600; font-size: 0.85rem; color: #334155;">
+          Người giám sát (Supervisor)
+        </label>
+        <select name="supervisorIds" [(ngModel)]="taskForm.supervisorIds">
+          <option value="">-- Không có người giám sát --</option>
+          @for (user of users; track user.id) {
+          <option [value]="user.id">{{ user.name }} ({{ user.id }})</option>
+          }
+        </select>
       </div>
+
+      <button type="submit" [disabled]="isLoading()" style="background: #6366f1; color: white; padding: 11px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.95rem; width: 100%; transition: all 0.2s; box-shadow: 0 2px 6px rgba(99, 102, 241, 0.3);">
+        @if (isLoading()) { Đang tạo task... } @else { Tạo Task }
+      </button>
     </form>
-
-    @if (isLoading()) {
-      <div class="loading">Creating task...</div>
-    }
   </div>
 </div>

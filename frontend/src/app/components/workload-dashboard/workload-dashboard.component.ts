@@ -1,118 +1,206 @@
-import { Component, signal, inject } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { forkJoin } from 'rxjs';
-import { TaskRpcService } from '../../services/task-rpc.service';
-import { TaskItem, WorkloadSummary } from '../../models/task-rpc.model';
+import { FormsModule } from '@angular/forms';
+import { HttpClient } from '@angular/common/http';
+import { environment } from '../../../environments/environment';
+import Swal from 'sweetalert2';
+
+interface OptionItem {
+  id: string;
+  name: string;
+}
+
+interface WorkloadStatRow {
+  userId: string;
+  userName: string;
+  total: number;
+  completed: number;
+  inProgress: number;
+  overdue: number;
+  completionRate: number;
+}
 
 @Component({
   selector: 'app-workload-dashboard',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
-  templateUrl: './workload-dashboard.component.html',
-  styles: [`
-    :host { display: block; }
-    .page { height: calc(100vh - 64px); background: #f3f4f6; display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 20px; box-sizing: border-box; }
-    .card { width: 100%; max-width: 1024px; max-height: 100%; overflow-y: auto; display: flex; flex-direction: column; background: #fff; box-shadow: 0 6px 18px rgba(15,23,42,0.08); border-radius: 8px; padding: 20px; }
-    h3 { margin: 0 0 12px 0; font-size: 1.125rem; }
-    .alert { border-radius: 6px; padding: 10px; margin-bottom: 12px; }
-    .alert-error { background: #fff5f5; color: #8b1d1d; border: 1px solid #ffdede; }
-    .alert-success { background: #f0fdf4; color: #14532d; border: 1px solid #d1fae5; }
-    .task-form { display: block; }
-    .form-row { margin-bottom: 10px; }
-    label { display: block; margin-bottom: 6px; font-size: 0.9rem; }
-    .input { width: 100%; box-sizing: border-box; border: 1px solid #e5e7eb; padding: 8px 10px; border-radius: 6px; font-size: 0.95rem; }
-    .input:focus, textarea:focus, select:focus { outline: none; box-shadow: 0 0 0 4px rgba(106,90,205,0.12); border-color: #6a5acd; }
-    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .form-actions { padding-top: 8px; }
-    .btn-primary { background: #6a5acd; color: #fff; border: none; padding: 10px 14px; border-radius: 6px; cursor: pointer; }
-    .btn-primary:hover { background: #5946b0; }
-    .btn-primary:disabled { opacity: 0.6; cursor: default; }
-    .loading { margin-top: 8px; color: #374151; }
-    .overdue-list li { border-bottom: 1px solid #e5e7eb; padding: 6px 0; }
-    .workload-table { width: 100%; border-collapse: collapse; }
-    .workload-table th, .workload-table td { padding: 8px 6px; }
-    .workload-table thead tr { background: #f3f4f6; }
-    .workload-table tbody tr { border-bottom: 1px solid #e5e7eb; }
-    /* Section spacing */
-    section { margin-bottom: 12px; }
-    section h4 { margin: 0 0 8px 0; font-size: 1rem; }
-  `]
+  imports: [CommonModule, FormsModule],
+  templateUrl: './workload-dashboard.component.html'
 })
-export class WorkloadDashboardComponent {
-  private fb = inject(FormBuilder);
-  private taskService = inject(TaskRpcService);
+export class WorkloadDashboardComponent implements OnInit {
+  private http = inject(HttpClient);
 
-  form = this.fb.group({
-    searchType: ['department'], // 'department' | 'user'
-    departmentId: [''],
-    userId: ['']
+  queryType: 'department' | 'user' = 'department';
+  selectedId: string = '';
+  isLoading = signal(false);
+
+  departments: OptionItem[] = [
+    { id: '6a709be6af0d8b17ec325927', name: 'Phòng Phát Triển Phần Mềm (DEV)' },
+    { id: '6a709be6af0d8b17ec325928', name: 'Phòng Nhân Sự (HR)' }
+  ];
+
+  users: OptionItem[] = [
+    { id: '64b8d5f1e1a3f5a0c2d9b7a1', name: 'Nguyễn Bá Hùng (Dev Lead)' },
+    { id: '64b8d5f1e1a3f5a0c2d9b7a2', name: 'Duy Linh (Backend Dev)' },
+    { id: '64b8d5f1e1a3f5a0c2d9b7a3', name: 'Trần Thị Lập Trình (Fullstack Dev)' },
+    { id: '64b8d5f1e1a3f5a0c2d9b7a4', name: 'Lê Văn Kiểm Thử (QA/QC Tester)' },
+    { id: '64b8d5f1e1a3f5a0c2d9b7a5', name: 'Nguyễn Văn Quản Lý (Admin/Manager)' }
+  ];
+
+  private userMap: Record<string, string> = {
+    '64b8d5f1e1a3f5a0c2d9b7a1': 'Nguyễn Bá Hùng',
+    '64b8d5f1e1a3f5a0c2d9b7a2': 'Duy Linh',
+    '64b8d5f1e1a3f5a0c2d9b7a3': 'Trần Thị Lập Trình',
+    '64b8d5f1e1a3f5a0c2d9b7a4': 'Lê Văn Kiểm Thử',
+    '64b8d5f1e1a3f5a0c2d9b7a5': 'Nguyễn Văn Quản Lý'
+  };
+
+  stats = signal({
+    total: 0,
+    completed: 0,
+    inProgress: 0,
+    overdue: 0
   });
 
-  isLoading = signal(false);
-  errorMessage = signal<string | null>(null);
-  successMessage = signal<string | null>(null);
+  overdueTasks = signal<any[]>([]);
+  workloadSummary = signal<WorkloadStatRow[]>([]);
 
-  overdueTasks = signal<TaskItem[]>([]);
-  workloadSummaries = signal<WorkloadSummary[]>([]);
+  ngOnInit(): void {
+    this.fetchUsersFromApi();
+    this.selectedId = ''; // Giữ trống ban đầu
+  }
 
-  load() {
-    this.errorMessage.set(null);
-    this.successMessage.set(null);
+  onQueryTypeChange(): void {
+    this.selectedId = ''; // Reset về trống khi đổi loại query
+  }
 
-    const searchType = String(this.form.get('searchType')?.value ?? 'department');
+  private fetchUsersFromApi(): void {
+    const url = `${environment.apiUrl.replace(/\/+$/, '')}/Users`;
+    this.http.get<any[]>(url).subscribe({
+      next: (res) => {
+        if (Array.isArray(res) && res.length > 0) {
+          const apiUsers = res.map(u => ({
+            id: String(u.id || u.Id || u._id || ''),
+            name: String(u.fullName || u.FullName || u.userName || u.UserName || u.name || 'User')
+          })).filter(u => u.id);
 
-    if (searchType === 'department') {
-      const deptId: string = String(this.form.get('departmentId')?.value ?? '').trim();
-      if (!deptId) {
-        this.form.get('departmentId')?.setErrors({ required: true });
-        this.form.markAllAsTouched();
-        return;
+          if (apiUsers.length > 0) {
+            this.users = apiUsers;
+            apiUsers.forEach(u => this.userMap[u.id] = u.name);
+          }
+        }
+      },
+      error: () => { }
+    });
+  }
+
+  getUserDisplayName(userId?: string): string {
+    const uid = String(userId || '').trim();
+    if (!uid) return 'Chưa phân công';
+    return this.userMap[uid] || (uid.length > 8 ? `Nhân sự (${uid.slice(0, 6)})` : uid);
+  }
+
+  loadDashboardData(): void {
+    if (!this.selectedId) return;
+
+    this.isLoading.set(true);
+    const baseUrl = environment.apiUrl.replace(/\/+$/, '');
+    const url = `${baseUrl}/Tasks`;
+
+    this.http.get<any[]>(url).subscribe({
+      next: (res) => {
+        let tasks: any[] = [];
+        if (Array.isArray(res)) tasks = res;
+        else if (Array.isArray((res as any)?.tasks)) tasks = (res as any).tasks;
+
+        const targetId = this.selectedId.trim();
+        const filtered = tasks.filter(t => {
+          if (this.queryType === 'department') {
+            const deptId = String(t.departmentId || t.DepartmentId || '').trim();
+            return deptId === targetId;
+          } else {
+            const assigneeId = String(t.assigneeId || t.AssigneeId || '').trim();
+            return assigneeId === targetId;
+          }
+        });
+
+        this.calculateDashboardStats(filtered);
+        this.isLoading.set(false);
+      },
+      error: (err) => {
+        this.isLoading.set(false);
+        Swal.fire({
+          icon: 'error',
+          title: 'Lỗi tải dữ liệu',
+          text: 'Không thể tải dữ liệu thống kê từ máy chủ. Vui lòng thử lại!'
+        });
+      }
+    });
+  }
+
+  private calculateDashboardStats(tasks: any[]): void {
+    const now = new Date();
+    let total = tasks.length;
+    let completed = 0;
+    let inProgress = 0;
+    let overdue = 0;
+    const overdues: any[] = [];
+    const userGroups: Record<string, { total: number; completed: number; inProgress: number; overdue: number }> = {};
+
+    tasks.forEach(t => {
+      const status = String(t.status ?? t.Status ?? 0).toLowerCase();
+      const isDone = status === '2' || status === 'completed' || status === 'done';
+      const isInProg = status === '1' || status === 'inprogress';
+
+      const dueDateStr = t.dueDate || t.DueDate;
+      let isOver = false;
+      if (dueDateStr && !isDone) {
+        const d = new Date(dueDateStr);
+        d.setHours(23, 59, 59, 999);
+        if (d < now) {
+          isOver = true;
+        }
       }
 
-      this.isLoading.set(true);
-
-      forkJoin({
-        overdueTasks: this.taskService.getOverdueTasks(deptId),
-        workloadSummaries: this.taskService.getWorkloadSummary({ departmentId: deptId })
-      }).subscribe({
-        next: (res) => {
-          // server returns PascalCase fields; models updated accordingly
-          this.overdueTasks.set(res.overdueTasks ?? res.overdueTasks ?? [] as any);
-          this.workloadSummaries.set(res.workloadSummaries ?? res.workloadSummaries ?? [] as any);
-          this.isLoading.set(false);
-          this.successMessage.set('Loaded dashboard for department ' + deptId);
-        },
-        error: (err) => {
-          this.isLoading.set(false);
-          const message = err?.message ?? 'Failed to load data';
-          this.errorMessage.set(message);
-        }
-      });
-
-    } else if (searchType === 'user') {
-      const userId = String(this.form.get('userId')?.value ?? '').trim();
-      if (!userId) {
-        this.form.get('userId')?.setErrors({ required: true });
-        this.form.markAllAsTouched();
-        return;
+      if (isDone) completed++;
+      if (isInProg) inProgress++;
+      if (isOver) {
+        overdue++;
+        overdues.push({
+          id: t.id || t.Id || t._id,
+          title: t.title || t.Title,
+          assigneeId: t.assigneeId || t.AssigneeId,
+          dueDate: dueDateStr,
+          priority: t.priority || t.Priority || 'Medium'
+        });
       }
 
-      this.isLoading.set(true);
-      this.overdueTasks.set([]);
+      const uId = String(t.assigneeId || t.AssigneeId || 'unassigned').trim();
+      if (!userGroups[uId]) {
+        userGroups[uId] = { total: 0, completed: 0, inProgress: 0, overdue: 0 };
+      }
+      userGroups[uId].total++;
+      if (isDone) userGroups[uId].completed++;
+      if (isInProg) userGroups[uId].inProgress++;
+      if (isOver) userGroups[uId].overdue++;
+    });
 
-      this.taskService.getWorkloadSummary({ userId }).subscribe({
-        next: (res) => {
-          this.workloadSummaries.set(res ?? []);
-          this.isLoading.set(false);
-          this.successMessage.set('Loaded workload summary for user ' + userId);
-        },
-        error: (err) => {
-          this.isLoading.set(false);
-          const message = err?.message ?? 'Failed to load data';
-          this.errorMessage.set(message);
-        }
-      });
-    }
+    this.stats.set({ total, completed, inProgress, overdue });
+    this.overdueTasks.set(overdues);
+
+    const summaryRows: WorkloadStatRow[] = Object.keys(userGroups).map(uId => {
+      const g = userGroups[uId];
+      const rate = g.total > 0 ? Math.round((g.completed / g.total) * 100) : 0;
+      return {
+        userId: uId,
+        userName: this.getUserDisplayName(uId),
+        total: g.total,
+        completed: g.completed,
+        inProgress: g.inProgress,
+        overdue: g.overdue,
+        completionRate: rate
+      };
+    });
+
+    this.workloadSummary.set(summaryRows);
   }
 }

@@ -8,3 +8,12 @@ html, body {
 }
 
 /* Removed global overflow: hidden so page scrolling and sticky nav work correctly */
+
+:root {
+  --bg-color: #f4f7fb;
+  --text-color: #0f172a;
+  --card-bg: #ffffff;
+}
+body { background: var(--bg-color); color: var(--text-color); }
+
+body { background: var(--bg-color); color: var(--text-color); }

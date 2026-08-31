@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { TaskRpcService } from '../../services/task-rpc.service';
 import { TaskItem } from '../../models/task-rpc.model';
+import { UiService } from '../../services/ui.service';
 
 @Component({
   selector: 'app-update-task-status',
@@ -12,8 +13,8 @@ import { TaskItem } from '../../models/task-rpc.model';
   styles: [`
     :host { display: block; }
     /* Unified page layout */
-    .page { height: calc(100vh - 64px); display: flex; align-items: center; justify-content: center; padding: 24px; box-sizing: border-box; overflow: hidden; background-color: #f9fafb; }
-    .card { width: 100%; max-width: 500px; padding: 24px; background: #ffffff; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); box-sizing: border-box; margin: 0; }
+    .page { height: calc(100vh - 64px); display: flex; align-items: center; justify-content: center; padding: 24px; box-sizing: border-box; overflow: hidden; background-color: var(--bg-color); color: var(--text-color); }
+    .card { width: 100%; max-width: 500px; padding: 24px; background: var(--card-bg); border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); box-sizing: border-box; margin: 0; }
     h3 { margin: 0 0 12px 0; font-size: 1.125rem; }
     .alert { border-radius: 6px; padding: 10px; margin-bottom: 12px; }
     .alert-error { background: #fff5f5; color: #8b1d1d; border: 1px solid #ffdede; }
@@ -21,7 +22,7 @@ import { TaskItem } from '../../models/task-rpc.model';
     .task-form { display: block; }
     .form-row { margin-bottom: 12px; }
     label { display: block; margin-bottom: 6px; font-size: 0.9rem; }
-    .input, textarea, select { width: 100%; box-sizing: border-box; border: 1px solid #e5e7eb; padding: 8px 10px; border-radius: 6px; font-size: 0.95rem; }
+    .input, textarea, select { width: 100%; box-sizing: border-box; border: 1px solid #e5e7eb; padding: 8px 10px; border-radius: 6px; font-size: 0.95rem; background: transparent; color: var(--text-color); }
     .input:focus, textarea:focus, select:focus { outline: none; box-shadow: 0 0 0 4px rgba(106,90,205,0.12); border-color: #6a5acd; }
     .form-actions { padding-top: 8px; }
     .btn-primary { background: #6a5acd; color: #fff; border: none; padding: 10px 14px; border-radius: 6px; cursor: pointer; }
@@ -33,6 +34,7 @@ import { TaskItem } from '../../models/task-rpc.model';
 export class UpdateTaskStatusComponent {
   private fb = inject(FormBuilder);
   private taskService = inject(TaskRpcService);
+  public ui = inject(UiService);
 
   form = this.fb.group({
     taskId: ['', Validators.required],

@@ -87,12 +87,20 @@ get t() {
     const val = this.form.value as { username: string | null; password: string | null; remember: boolean };
     this.loading.set(true);
 
+    // Measure API latency from frontend
+    console.time('API_Login');
     this.auth.login({ email: val.username ?? '', password: val.password ?? '' }).subscribe({
       next: async () => {
+        // End frontend timer as soon as response arrives
+        console.timeEnd('API_Login');
         this.loading.set(false);
+        // Token is written to localStorage synchronously inside AuthService.map()
+        // Navigate immediately after successful login
         await this.router.navigate(['/']);
       },
       error: (err: any) => {
+        // End frontend timer on error as well
+        console.timeEnd('API_Login');
         this.loading.set(false);
         this.serverError.set(err?.error?.message || 'Invalid username or password.');
       }

@@ -1,19 +1,19 @@
+@if (!isLoginPage) {
 <nav class="main-nav" role="navigation" aria-label="Main navigation">
-  <a [routerLink]="['/']" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">Home</a>
-  <a [routerLink]="['/create-task']" routerLinkActive="active">Tạo Task</a>
-  <a [routerLink]="['/dashboard']" routerLinkActive="active">Workload Dashboard</a>
-  <a [routerLink]="['/update-status']" routerLinkActive="active">Cập nhật Task</a>
+  <a [routerLink]="['/']" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">Trang chủ</a>
+  <a [routerLink]="['/create-task']" routerLinkActive="active">Tạo công việc</a>
+  <a [routerLink]="['/dashboard']" routerLinkActive="active">Báo cáo tiến độ</a>
+  <a [routerLink]="['/kanban']" routerLinkActive="active">Bảng công việc</a>
+  <a [routerLink]="['/update-status']" routerLinkActive="active">Cập nhật trạng thái</a>
 </nav>
+}
 
 <router-outlet></router-outlet>
 
 <!-- Toast layer -->
 <app-toast></app-toast>
 
-
-<!-- Daily Briefing (control-flow) -->
+<!-- Daily Briefing -->
 @if (showDaily()) {
-  <app-daily-briefing (close)="showDaily.set(false)"></app-daily-briefing>
+<app-daily-briefing (close)="showDaily.set(false)"></app-daily-briefing>
 }
-
-<!-- Debug button removed; daily briefing opens between 08:00-09:00 automatically -->

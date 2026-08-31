@@ -1,5 +1,4 @@
-
-import { RouterModule } from '@angular/router';
+import { RouterModule, Router } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { Component, OnInit, inject, signal, afterNextRender, Injector, runInInjectionContext } from '@angular/core';
 import { SignalRService } from './services/signalr.service';
@@ -16,61 +15,60 @@ import { DailyBriefingComponent } from './daily-briefing/daily-briefing.componen
   styleUrl: './app.scss',
 })
 export class App implements OnInit {
-  // Cho phép hiển thị giao diện ngay lập tức để kịp demo
   isReady = true;
   showDaily = signal(false);
 
-  // inject services at class-level for clarity
   private auth = inject(AuthService);
   private signalR = inject(SignalRService);
   private injector = inject(Injector);
+  private router = inject(Router);
+
+  get isLoginPage(): boolean {
+    try {
+      const url = String(this.router.url || '');
+      return url === '/login' || url.includes('/login');
+    } catch {
+      return false;
+    }
+  }
 
   ngOnInit(): void {
     try {
-      // Start SignalR only when authenticated
       if (this.auth.isLoggedIn()) {
-        // The SignalRService implementation already registers the server-side handlers
-        // (e.g., 'ReceiveAlert') and uses ToastService internally. Just start the connection.
         this.signalR.startConnection();
 
-        // Show daily briefing between 08:00 and 08:59 only once per day
         const now = new Date();
         const hour = now.getHours();
         if (hour >= 8 && hour < 9) {
-        const key = 'daily_briefing_date';
+          const key = 'daily_briefing_date';
           const last = localStorage.getItem(key);
-          const today = now.toISOString().slice(0, 10); // YYYY-MM-DD
+          const today = now.toISOString().slice(0, 10);
           if (last !== today) {
-            // render after next render to ensure app template is present
-            // run inside an injection context to avoid NG0203 runtime error
             try {
               runInInjectionContext(this.injector, () => {
                 afterNextRender(() => {
                   this.showDaily.set(true);
-                  try { localStorage.setItem(key, today); } catch { /* ignore */ }
+                  try { localStorage.setItem(key, today); } catch { }
                 });
               });
             } catch (e) {
-              // fallback: try direct afterNextRender
               try {
                 afterNextRender(() => {
                   this.showDaily.set(true);
-                  try { localStorage.setItem(key, today); } catch { /* ignore */ }
+                  try { localStorage.setItem(key, today); } catch { }
                 });
               } catch (err) {
-                console.warn('Could not schedule daily briefing in injection context', err || e);
+                console.warn('Could not schedule daily briefing', err || e);
               }
             }
           }
         }
       }
     } catch (e) {
-      // ignore if injection fails in some environments
       console.warn('App init error', e);
     }
   }
 
-  // debug helper to open daily briefing manually
   openDailyDebug(): void {
     this.showDaily.set(true);
   }

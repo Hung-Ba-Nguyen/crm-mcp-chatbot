@@ -12,7 +12,7 @@
   "packageManager": "npm@11.6.2",
   "dependencies": {
     "@angular/animations": "^21.2.0",
-    "@angular/cdk": "^21.2.0",
+    "@angular/cdk": "^21.2.14",
     "@angular/common": "^21.2.0",
     "@angular/compiler": "^21.2.0",
     "@angular/core": "^21.2.0",
@@ -25,6 +25,7 @@
     "marked": "^18.0.9",
     "ngx-markdown": "^22.0.0",
     "rxjs": "~7.8.0",
+    "sweetalert2": "^11.26.25",
     "tslib": "^2.3.0"
   },
   "devDependencies": {

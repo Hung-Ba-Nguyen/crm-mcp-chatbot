@@ -1,102 +1,165 @@
-import { Component, signal, inject } from '@angular/core';
+import { Component, inject, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormsModule } from '@angular/forms';
+import { HttpClient } from '@angular/common/http';
+import { environment } from '../../../environments/environment';
 import { TaskRpcService } from '../../services/task-rpc.service';
-import { TaskItem } from '../../models/task-rpc.model';
+import { UiService } from '../../services/ui.service';
+import Swal from 'sweetalert2';
+
+interface OptionItem {
+  id: string;
+  name: string;
+}
 
 @Component({
   selector: 'app-create-task',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
-  templateUrl: './create-task.component.html',
-  styles: [`
-    :host { display: block; }
-    /* Unified page layout */
-    .page { height: calc(100vh - 64px); display: flex; align-items: center; justify-content: center; padding: 24px 24px; box-sizing: border-box; overflow: hidden; background-color: #f3f4f6; }
-    .card { width: 100%; max-width: 1024px; background: #ffffff; box-shadow: 0 6px 18px rgba(15,23,42,0.08); border-radius: 8px; padding: 16px 20px; box-sizing: border-box; overflow: hidden; }
-    h3 { margin: 0 0 8px 0; font-size: 1.125rem; }
-    .alert { border-radius: 6px; padding: 10px; margin-bottom: 12px; }
-    .alert-error { background: #fff5f5; color: #8b1d1d; border: 1px solid #ffdede; }
-    .alert-success { background: #f0fdf4; color: #14532d; border: 1px solid #d1fae5; }
-    .task-form { display: block; }
-    .form-row { margin-bottom: 8px; }
-    label { display: block; margin-bottom: 2px; font-size: 0.9rem; }
-    .input, textarea, select { width: 100%; box-sizing: border-box; border: 1px solid #e5e7eb; padding: 6px 10px; border-radius: 6px; font-size: 0.95rem; }
-    textarea { min-height: 40px; resize: vertical; }
-    .input:focus, textarea:focus, select:focus { outline: none; box-shadow: 0 0 0 4px rgba(106,90,205,0.12); border-color: #6a5acd; }
-    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .form-actions { margin-top: 2px; padding-top: 0; }
-
-    /* Ensure button sits closer to bottom */
-    .btn-primary { margin-bottom: 0; }
-    .btn-primary { background: #6a5acd; color: #fff; border: none; padding: 10px 14px; border-radius: 6px; cursor: pointer; }
-    .btn-primary:hover { background: #5946b0; }
-    .btn-primary:disabled { opacity: 0.6; cursor: default; }
-    .loading { margin-top: 8px; color: #374151; }
-  `]
+  imports: [CommonModule, FormsModule],
+  templateUrl: './create-task.component.html'
 })
-export class CreateTaskComponent {
-  private fb = inject(FormBuilder);
-  private taskService = inject(TaskRpcService);
-
-  form = this.fb.group({
-    title: ['', Validators.required],
-    description: ['', Validators.required],
-    departmentId: ['', Validators.required],
-    assigneeId: ['', Validators.required],
-    dueDate: ['', Validators.required],
-    priority: ['', Validators.required],
-    supervisorIds: ['']
-  });
+export class CreateTaskComponent implements OnInit {
+  private taskRpc = inject(TaskRpcService);
+  private http = inject(HttpClient);
+  public ui = inject(UiService);
 
   isLoading = signal(false);
   errorMessage = signal<string | null>(null);
   successMessage = signal<string | null>(null);
+  isSubmitted = signal(false);
+
+  departments: OptionItem[] = [
+    { id: '6a709be6af0d8b17ec325927', name: 'Phòng Phát Triển Phần Mềm (DEV)' },
+    { id: '6a709be6af0d8b17ec325928', name: 'Phòng Nhân Sự (HR)' }
+  ];
+
+  users: OptionItem[] = [
+    { id: '64b8d5f1e1a3f5a0c2d9b7a1', name: 'Nguyễn Bá Hùng (Dev Lead)' },
+    { id: '64b8d5f1e1a3f5a0c2d9b7a2', name: 'Duy Linh (Backend Dev)' },
+    { id: '64b8d5f1e1a3f5a0c2d9b7a3', name: 'Trần Thị Lập Trình (Fullstack Dev)' },
+    { id: '64b8d5f1e1a3f5a0c2d9b7a4', name: 'Lê Văn Kiểm Thử (QA/QC Tester)' },
+    { id: '64b8d5f1e1a3f5a0c2d9b7a5', name: 'Nguyễn Văn Quản Lý (Admin/Manager)' }
+  ];
+
+  taskForm = {
+    title: '',
+    description: '',
+    departmentId: '',
+    assigneeId: '',
+    dueDate: '',
+    priority: 'Medium',
+    supervisorIds: ''
+  };
+
+  ngOnInit(): void {
+    this.fetchUsersFromApi();
+  }
+
+  private fetchUsersFromApi(): void {
+    const url = `${environment.apiUrl.replace(/\/+$/, '')}/Users`;
+    this.http.get<any[]>(url).subscribe({
+      next: (res) => {
+        if (Array.isArray(res) && res.length > 0) {
+          const apiUsers = res.map(u => ({
+            id: String(u.id || u.Id || u._id || ''),
+            name: String(u.fullName || u.FullName || u.userName || u.UserName || u.email || 'User')
+          })).filter(u => u.id);
+
+          if (apiUsers.length > 0) {
+            this.users = apiUsers;
+          }
+        }
+      },
+      error: () => { /* Giữ danh sách mặc định nếu endpoint /Users chưa có */ }
+    });
+  }
+
+  hasFieldError(field: 'title' | 'departmentId' | 'assigneeId' | 'dueDate'): boolean {
+    if (!this.isSubmitted()) return false;
+    return !this.taskForm[field] || String(this.taskForm[field]).trim() === '';
+  }
 
   submit() {
+    this.isSubmitted.set(true);
     this.errorMessage.set(null);
     this.successMessage.set(null);
-    if (this.form.invalid) {
-      this.form.markAllAsTouched();
+
+    const missingFields: string[] = [];
+    if (!this.taskForm.title.trim()) missingFields.push('Tiêu đề task');
+    if (!this.taskForm.departmentId.trim()) missingFields.push('Phòng ban');
+    if (!this.taskForm.assigneeId.trim()) missingFields.push('Người phụ trách');
+    if (!this.taskForm.dueDate) missingFields.push('Hạn hoàn thành');
+
+    if (missingFields.length > 0) {
+      const msg = `Vui lòng nhập đầy đủ: ${missingFields.join(', ')}`;
+      this.errorMessage.set(msg);
+      Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'warning',
+        title: msg,
+        showConfirmButton: false,
+        timer: 3000,
+        timerProgressBar: true
+      });
       return;
-    }
-
-    const raw = this.form.value;
-
-    // Format dueDate to ISO 8601 string
-    const due = raw.dueDate ? new Date(raw.dueDate).toISOString() : null;
-
-    const params: any = {
-      Title: raw.title,
-      Description: raw.description,
-      DepartmentId: raw.departmentId,
-      AssigneeId: raw.assigneeId,
-      DueDate: due,
-      // Map priority string to integer to avoid backend enum parsing issues
-      Priority: ((): number => {
-        const priorityMap: Record<string, number> = { 'Low': 0, 'Medium': 1, 'High': 2 };
-        return priorityMap[String(raw.priority)] ?? 1;
-      })()
-    };
-
-    if (raw.supervisorIds) {
-      params.SupervisorIds = Array.isArray(raw.supervisorIds)
-        ? raw.supervisorIds
-        : String(raw.supervisorIds).split(',').map((s: string) => s.trim()).filter(Boolean);
     }
 
     this.isLoading.set(true);
 
-    this.taskService.createTask(params).subscribe({
-      next: (task: TaskItem) => {
+    const payload = {
+      title: this.taskForm.title.trim(),
+      description: this.taskForm.description.trim(),
+      departmentId: this.taskForm.departmentId.trim(),
+      assigneeId: this.taskForm.assigneeId.trim(),
+      priority: this.taskForm.priority,
+      dueDate: new Date(this.taskForm.dueDate).toISOString(),
+      supervisorIds: this.taskForm.supervisorIds
+        ? [this.taskForm.supervisorIds.trim()]
+        : []
+    };
+
+    this.taskRpc.createTask(payload).subscribe({
+      next: (res: any) => {
         this.isLoading.set(false);
-        this.successMessage.set('Task created: ' + task.Title);
-        this.form.reset();
+        this.isSubmitted.set(false);
+        const successText = `Tạo task thành công: ${res?.title || payload.title}`;
+        this.successMessage.set(successText);
+
+        Swal.fire({
+          toast: true,
+          position: 'top-end',
+          icon: 'success',
+          title: successText,
+          showConfirmButton: false,
+          timer: 2000,
+          timerProgressBar: true
+        });
+
+        this.taskForm = {
+          title: '',
+          description: '',
+          departmentId: '',
+          assigneeId: '',
+          dueDate: '',
+          priority: 'Medium',
+          supervisorIds: ''
+        };
       },
       error: (err: any) => {
         this.isLoading.set(false);
-        const message = err?.message ?? 'Unknown error';
-        this.errorMessage.set(message);
+        const errorText = err?.error?.title || err?.message || 'Không thể tạo task. Vui lòng thử lại!';
+        this.errorMessage.set(errorText);
+
+        Swal.fire({
+          toast: true,
+          position: 'top-end',
+          icon: 'error',
+          title: errorText,
+          showConfirmButton: false,
+          timer: 3500,
+          timerProgressBar: true
+        });
       }
     });
   }
