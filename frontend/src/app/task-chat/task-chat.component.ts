@@ -10,6 +10,7 @@ import { MatInputModule } from '@angular/material/input';
 import { MatListModule } from '@angular/material/list';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { HttpClient } from '@angular/common/http';
+import { Subscription } from 'rxjs';
 import { ChatService } from '../chat.service';
 import { environment } from '../../environments/environment';
 import { TaskRpcService } from '../services/task-rpc.service';
@@ -66,18 +67,27 @@ export class TaskChatComponent implements OnInit, OnDestroy {
   selectedTask: Task | null = null;
   newMessage = '';
 
+  // Trạng thái đóng/mở Sidebar
+  isSidebarOpen = signal(true);
+
   // Quản lý trạng thái bot đang suy nghĩ riêng theo từng Task ID
   typingTaskIds = signal<Set<string>>(new Set<string>());
+  private activeAiSubscription: Subscription | null = null;
 
   showKpiModal = signal(false);
   kpiData = signal<{ departmentName?: string; totalTasks?: number; completedTasks?: number; inProgressTasks?: number; completionRate?: number } | null>(null);
 
   private chatCache = new Map<string, ChatMessage[]>();
 
+  toggleSidebar(): void {
+    this.isSidebarOpen.update(v => !v);
+  }
+
   getStatusLabel(status: any): string {
     const s = String(status ?? '').toLowerCase();
-    if (s === 'inprogress' || s === '1') return 'Đang làm';
+    if (s === 'inprogress' || s === '1') return 'Đang thực hiện';
     if (s === 'completed' || s === 'done' || s === '2') return 'Đã hoàn thành';
+    if (s === 'cancelled' || s === '3') return 'Đã hủy';
     return 'Cần làm';
   }
 
@@ -153,6 +163,28 @@ export class TaskChatComponent implements OnInit, OnDestroy {
     return prevDate !== currDate;
   }
 
+  sendQuickPrompt(promptText: string): void {
+    this.newMessage = promptText;
+    this.sendMessage();
+  }
+
+  cancelCurrentAiRequest(): void {
+    if (this.activeAiSubscription && !this.activeAiSubscription.closed) {
+      this.activeAiSubscription.unsubscribe();
+      this.activeAiSubscription = null;
+    }
+    if (this.selectedTask) {
+      this.setTyping(this.selectedTask.id, false);
+      const cancelMsg: ChatMessage = {
+        sender: 'bot',
+        text: '_(Đã hủy yêu cầu truy vấn AI)_',
+        processedText: '_(Đã hủy yêu cầu truy vấn AI)_',
+        timestamp: new Date()
+      };
+      this.appendMessage(this.selectedTask.id, cancelMsg);
+    }
+  }
+
   summarizeTask(): void {
     if (!this.selectedTask) return;
 
@@ -172,7 +204,7 @@ export class TaskChatComponent implements OnInit, OnDestroy {
     const requestBody = { Message: prompt, TaskId: currentTaskId };
     const url = `${this.baseUrl.replace(/\/+$/, '')}/chat`;
 
-    this.http.post<any>(url, requestBody).subscribe({
+    this.activeAiSubscription = this.http.post<any>(url, requestBody).subscribe({
       next: (res) => {
         this.setTyping(currentTaskId, false);
         const botText = res?.data?.answer || res?.data?.Answer || res?.Answer || res?.answer || res?.result || (typeof res === 'string' ? res : '') || 'Không có câu trả lời.';
@@ -185,7 +217,6 @@ export class TaskChatComponent implements OnInit, OnDestroy {
         this.appendMessage(currentTaskId, botMsg);
       },
       error: (err) => {
-        console.error('Lỗi tóm tắt task:', err);
         this.setTyping(currentTaskId, false);
         const botMsg: ChatMessage = {
           sender: 'bot',
@@ -212,7 +243,7 @@ export class TaskChatComponent implements OnInit, OnDestroy {
     const requestBody = { Message: content, TaskId: currentTaskId };
     const url = `${this.baseUrl.replace(/\/+$/, '')}/chat`;
 
-    this.http.post<any>(url, requestBody).subscribe({
+    this.activeAiSubscription = this.http.post<any>(url, requestBody).subscribe({
       next: (res) => {
         this.setTyping(currentTaskId, false);
         const botText = res?.data?.answer || res?.data?.Answer || res?.Answer || res?.answer || res?.result || (typeof res === 'string' ? res : '') || 'Không có câu trả lời.';
@@ -225,7 +256,6 @@ export class TaskChatComponent implements OnInit, OnDestroy {
         this.appendMessage(currentTaskId, botMsg);
       },
       error: (err) => {
-        console.error('Lỗi gửi tin nhắn:', err);
         this.setTyping(currentTaskId, false);
         const botMsg: ChatMessage = {
           sender: 'bot',
@@ -346,7 +376,11 @@ export class TaskChatComponent implements OnInit, OnDestroy {
     } catch { }
   }
 
-  ngOnDestroy(): void { }
+  ngOnDestroy(): void {
+    if (this.activeAiSubscription && !this.activeAiSubscription.closed) {
+      this.activeAiSubscription.unsubscribe();
+    }
+  }
 
   trackByMessage(_index: number, message: ChatMessage): string | number {
     return message.timestamp ? message.timestamp.getTime() : _index;

@@ -45,11 +45,20 @@ export class UpdateTaskStatusComponent {
   errorMessage = signal<string | null>(null);
   successMessage = signal<string | null>(null);
 
+  private getStatusLabel(statusVal: any): string {
+    const s = String(statusVal ?? '').toLowerCase();
+    if (s === '1' || s === 'inprogress') return 'Đang thực hiện';
+    if (s === '2' || s === 'completed' || s === 'done') return 'Đã hoàn thành';
+    if (s === '3' || s === 'cancelled') return 'Đã hủy';
+    return 'Cần làm';
+  }
+
   submit() {
     this.errorMessage.set(null);
     this.successMessage.set(null);
     if (this.form.invalid) {
       this.form.markAllAsTouched();
+      this.errorMessage.set('Vui lòng nhập mã Task cần cập nhật.');
       return;
     }
 
@@ -61,12 +70,14 @@ export class UpdateTaskStatusComponent {
     this.taskService.updateTaskStatus(taskId, status).subscribe({
       next: (task: TaskItem) => {
         this.isLoading.set(false);
-        this.successMessage.set('Task ' + task.Title + ' updated to ' + task.Status);
+        const taskTitle = task.Title ? `"${task.Title}"` : `Task [${taskId}]`;
+        const statusText = this.getStatusLabel(task.Status ?? status);
+        this.successMessage.set(`Đã cập nhật trạng thái ${taskTitle} sang "${statusText}" thành công!`);
         this.form.reset({ status: 'Todo' });
       },
       error: (err: any) => {
         this.isLoading.set(false);
-        const msg = err?.message ?? 'Failed to update task status';
+        const msg = err?.message ?? 'Cập nhật trạng thái Task thất bại. Vui lòng kiểm tra lại mã Task!';
         this.errorMessage.set(msg);
       }
     });

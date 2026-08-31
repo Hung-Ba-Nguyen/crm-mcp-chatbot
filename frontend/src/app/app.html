@@ -1,19 +1,163 @@
 @if (!isLoginPage) {
 <nav class="main-nav" role="navigation" aria-label="Main navigation">
-  <a [routerLink]="['/']" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">Trang chủ</a>
-  <a [routerLink]="['/create-task']" routerLinkActive="active">Tạo công việc</a>
-  <a [routerLink]="['/dashboard']" routerLinkActive="active">Báo cáo tiến độ</a>
-  <a [routerLink]="['/kanban']" routerLinkActive="active">Bảng công việc</a>
-  <a [routerLink]="['/update-status']" routerLinkActive="active">Cập nhật trạng thái</a>
+  <!-- LOGO BRANDING BÊN TRÁI -->
+  <div class="nav-brand">
+    <div class="brand-badge-icon">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="3" y="6" width="18" height="14" rx="4" fill="url(#navBrandGrad)" />
+        <path d="M12 2V6" stroke="url(#navBrandGrad)" stroke-width="2" stroke-linecap="round" />
+        <circle cx="8.5" cy="12.5" r="1.6" fill="#ffffff" />
+        <circle cx="15.5" cy="12.5" r="1.6" fill="#ffffff" />
+        <defs>
+          <linearGradient id="navBrandGrad" x1="3" y1="2" x2="21" y2="20" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#4f46e5" />
+            <stop offset="1" stop-color="#7c3aed" />
+          </linearGradient>
+        </defs>
+      </svg>
+    </div>
+    <span class="brand-name">TaskFlow <span>AI</span></span>
+  </div>
+
+  <!-- CÁC TAB ĐIỀU HƯỚNG TRUNG TÂM -->
+  <div class="nav-links">
+    <a [routerLink]="['/']" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">Trang chủ</a>
+    <a [routerLink]="['/create-task']" routerLinkActive="active">Tạo công việc</a>
+    <a [routerLink]="['/dashboard']" routerLinkActive="active">Báo cáo tiến độ</a>
+    <a [routerLink]="['/kanban']" routerLinkActive="active">Bảng công việc</a>
+    <a [routerLink]="['/update-status']" routerLinkActive="active">Cập nhật trạng thái</a>
+  </div>
+
+  <!-- CỤM THÔNG BÁO BÊN PHẢI -->
+  <div class="nav-right-cluster">
+    <!-- Chuông 1: Việc mới -->
+    <div class="notif-wrapper">
+      <button type="button" class="notif-circle-btn" [class.active]="activeDropdown() === 'new'" (click)="toggleNotifDropdown('new')" title="Việc mới">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+        </svg>
+        @if (newTasksNotifs().length > 0) {
+        <span class="notif-indicator notif-blue">{{ newTasksNotifs().length }}</span>
+        }
+      </button>
+
+      @if (activeDropdown() === 'new') {
+      <div class="notif-dropdown">
+        <div class="notif-header">
+          <div class="title-wrap">
+            <h4>Việc mới được giao</h4>
+            <span class="count-tag">{{ newTasksNotifs().length }}</span>
+          </div>
+          @if (newTasksNotifs().length > 0) {
+          <button type="button" class="btn-mark-all" (click)="markAllAsRead('new')">Đã đọc hết</button>
+          }
+        </div>
+        <div class="notif-list">
+          @for (item of newTasksNotifs(); track item.id) {
+          <div class="notif-item" (click)="readSingleItem('new', item.id)">
+            <div class="notif-dot dot-blue"></div>
+            <div class="notif-body">
+              <p class="notif-title">{{ item.title }}</p>
+              <span class="notif-time">{{ item.time }}</span>
+            </div>
+            <span class="mark-icon">✕</span>
+          </div>
+          } @empty {
+          <div class="notif-empty">Đã xem hết thông báo mới.</div>
+          }
+        </div>
+      </div>
+      }
+    </div>
+
+    <!-- Chuông 2: Cập nhật -->
+    <div class="notif-wrapper">
+      <button type="button" class="notif-circle-btn" [class.active]="activeDropdown() === 'update'" (click)="toggleNotifDropdown('update')" title="Tiến độ & thảo luận">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+        </svg>
+        @if (updatedTasksNotifs().length > 0) {
+        <span class="notif-indicator notif-purple">{{ updatedTasksNotifs().length }}</span>
+        }
+      </button>
+
+      @if (activeDropdown() === 'update') {
+      <div class="notif-dropdown">
+        <div class="notif-header">
+          <div class="title-wrap">
+            <h4>Việc đang thực hiện</h4>
+            <span class="count-tag">{{ updatedTasksNotifs().length }}</span>
+          </div>
+          @if (updatedTasksNotifs().length > 0) {
+          <button type="button" class="btn-mark-all" (click)="markAllAsRead('update')">Đã đọc hết</button>
+          }
+        </div>
+        <div class="notif-list">
+          @for (item of updatedTasksNotifs(); track item.id) {
+          <div class="notif-item" (click)="readSingleItem('update', item.id)">
+            <div class="notif-dot dot-purple"></div>
+            <div class="notif-body">
+              <p class="notif-title">{{ item.title }}</p>
+              <span class="notif-time">{{ item.time }}</span>
+            </div>
+            <span class="mark-icon">✕</span>
+          </div>
+          } @empty {
+          <div class="notif-empty">Không có cập nhật chưa đọc.</div>
+          }
+        </div>
+      </div>
+      }
+    </div>
+
+    <!-- Chuông 3: Chờ duyệt -->
+    <div class="notif-wrapper">
+      <button type="button" class="notif-circle-btn" [class.active]="activeDropdown() === 'approval'" (click)="toggleNotifDropdown('approval')" title="Việc chờ phê duyệt">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <polyline points="12 6 12 12 16 14"></polyline>
+        </svg>
+        @if (pendingApprovalNotifs().length > 0) {
+        <span class="notif-indicator notif-amber">{{ pendingApprovalNotifs().length }}</span>
+        }
+      </button>
+
+      @if (activeDropdown() === 'approval') {
+      <div class="notif-dropdown">
+        <div class="notif-header">
+          <div class="title-wrap">
+            <h4>Việc chờ duyệt</h4>
+            <span class="count-tag">{{ pendingApprovalNotifs().length }}</span>
+          </div>
+          @if (pendingApprovalNotifs().length > 0) {
+          <button type="button" class="btn-mark-all" (click)="markAllAsRead('approval')">Đã đọc hết</button>
+          }
+        </div>
+        <div class="notif-list">
+          @for (item of pendingApprovalNotifs(); track item.id) {
+          <div class="notif-item" (click)="readSingleItem('approval', item.id)">
+            <div class="notif-dot dot-amber"></div>
+            <div class="notif-body">
+              <p class="notif-title">{{ item.title }}</p>
+              <span class="notif-time">{{ item.time }}</span>
+            </div>
+            <span class="mark-icon">✕</span>
+          </div>
+          } @empty {
+          <div class="notif-empty">Đã xử lý hết việc chờ duyệt.</div>
+          }
+        </div>
+      </div>
+      }
+    </div>
+  </div>
 </nav>
 }
 
 <router-outlet></router-outlet>
-
-<!-- Toast layer -->
 <app-toast></app-toast>
 
-<!-- Daily Briefing -->
 @if (showDaily()) {
 <app-daily-briefing (close)="showDaily.set(false)"></app-daily-briefing>
 }
