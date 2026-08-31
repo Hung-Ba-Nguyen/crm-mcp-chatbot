@@ -1,38 +1,40 @@
 <div class="page">
   <div class="card">
-    <h3>{{ ui.translate('title.updateTask') }}</h3>
+    <h3>Cập nhật trạng thái Task</h3>
 
     @if (errorMessage()) {
-      <div class="alert alert-error">{{ errorMessage() }}</div>
+    <div class="alert alert-error">{{ errorMessage() }}</div>
     }
 
     @if (successMessage()) {
-      <div class="alert alert-success">{{ successMessage() }}</div>
+    <div class="alert alert-success">{{ successMessage() }}</div>
     }
 
     <form [formGroup]="form" (ngSubmit)="submit()" class="task-form">
       <div class="form-row">
-        <label>{{ ui.translate('label.taskId') }}</label>
-        <input class="input" formControlName="taskId" placeholder="{{ ui.translate('label.taskId') }}" />
+        <label>Mã Task (Task ID) <span style="color: #ef4444;">*</span></label>
+        <input class="input" formControlName="taskId" placeholder="Nhập mã Task..." />
       </div>
 
       <div class="form-row">
-        <label>{{ ui.translate('label.status') }}</label>
+        <label>Trạng thái mới <span style="color: #ef4444;">*</span></label>
         <select class="input" formControlName="status">
-          <option value="Todo">{{ ui.translate('kanban.todo') }}</option>
-          <option value="InProgress">{{ ui.translate('kanban.inProgress') }}</option>
-          <option value="Completed">{{ ui.translate('kanban.completed') }}</option>
-          <option value="Cancelled">{{ ui.translate('kanban.cancelled') }}</option>
+          <option value="Todo">Cần làm</option>
+          <option value="InProgress">Đang thực hiện</option>
+          <option value="Completed">Đã hoàn thành</option>
+          <option value="Cancelled">Đã hủy</option>
         </select>
       </div>
 
       <div class="form-actions">
-        <button type="submit" [disabled]="isLoading()" class="btn-primary">{{ ui.translate('btn.updateStatus') }}</button>
+        <button type="submit" [disabled]="isLoading()" class="btn-primary">
+          {{ isLoading() ? 'Đang cập nhật...' : 'Cập nhật' }}
+        </button>
       </div>
     </form>
 
     @if (isLoading()) {
-      <div class="loading">{{ ui.translate('updating') }}</div>
+    <div class="loading">Đang xử lý cập nhật trạng thái...</div>
     }
   </div>
 </div>

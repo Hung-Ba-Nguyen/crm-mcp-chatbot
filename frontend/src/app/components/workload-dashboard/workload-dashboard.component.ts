@@ -66,11 +66,11 @@ export class WorkloadDashboardComponent implements OnInit {
 
   ngOnInit(): void {
     this.fetchUsersFromApi();
-    this.selectedId = ''; // Giữ trống ban đầu
+    this.selectedId = '';
   }
 
   onQueryTypeChange(): void {
-    this.selectedId = ''; // Reset về trống khi đổi loại query
+    this.selectedId = '';
   }
 
   private fetchUsersFromApi(): void {
@@ -202,5 +202,211 @@ export class WorkloadDashboardComponent implements OnInit {
     });
 
     this.workloadSummary.set(summaryRows);
+  }
+
+  // XUẤT BÁO CÁO EXCEL ĐỊNH DẠNG XML SPREADSHEET CÓ BẢNG, MÀU VÀ TỰ CĂN CHỈNH CỘT
+  exportToExcel(): void {
+    if (this.stats().total === 0) {
+      Swal.fire({
+        icon: 'info',
+        title: 'Chưa có dữ liệu',
+        text: 'Vui lòng chọn đối tượng và tải dữ liệu trước khi xuất báo cáo.'
+      });
+      return;
+    }
+
+    const currentTargetName = this.queryType === 'department'
+      ? (this.departments.find(d => d.id === this.selectedId)?.name || 'Phòng Ban')
+      : (this.users.find(u => u.id === this.selectedId)?.name || 'Nhân Sự');
+
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('vi-VN');
+
+    let xml = `<?xml version="1.0" encoding="utf-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+ <Styles>
+  <Style ss:ID="Default" ss:Name="Normal">
+   <Alignment ss:Vertical="Center"/>
+   <Font ss:FontName="Segoe UI" ss:Size="10" ss:Color="#1E293B"/>
+  </Style>
+  <Style ss:ID="Title">
+   <Font ss:FontName="Segoe UI" ss:Size="16" ss:Bold="1" ss:Color="#4338CA"/>
+  </Style>
+  <Style ss:ID="SubTitle">
+   <Font ss:FontName="Segoe UI" ss:Size="10" ss:Italic="1" ss:Color="#64748B"/>
+  </Style>
+  <Style ss:ID="SectionHeader">
+   <Font ss:FontName="Segoe UI" ss:Size="11" ss:Bold="1" ss:Color="#0F172A"/>
+  </Style>
+  <Style ss:ID="TableHeader">
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+   <Borders>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CBD5E1"/>
+    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CBD5E1"/>
+    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CBD5E1"/>
+    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#CBD5E1"/>
+   </Borders>
+   <Font ss:FontName="Segoe UI" ss:Size="10" ss:Bold="1" ss:Color="#FFFFFF"/>
+   <Interior ss:Color="#4F46E5" ss:Pattern="Solid"/>
+  </Style>
+  <Style ss:ID="TableCell">
+   <Borders>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+   </Borders>
+  </Style>
+  <Style ss:ID="TableCellCenter">
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+   <Borders>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+   </Borders>
+  </Style>
+  <Style ss:ID="CellOverdue">
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+   <Borders>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+   </Borders>
+   <Font ss:FontName="Segoe UI" ss:Size="10" ss:Bold="1" ss:Color="#DC2626"/>
+  </Style>
+  <Style ss:ID="CellCompleted">
+   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+   <Borders>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+    <Border ss:Position="Left" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+    <Border ss:Position="Right" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E2E8F0"/>
+   </Borders>
+   <Font ss:FontName="Segoe UI" ss:Size="10" ss:Bold="1" ss:Color="#16A34A"/>
+  </Style>
+ </Styles>
+ <Worksheet ss:Name="Báo cáo tiến độ">
+  <Table ss:DefaultRowHeight="20">
+   <Column ss:Width="200"/>
+   <Column ss:Width="160"/>
+   <Column ss:Width="120"/>
+   <Column ss:Width="120"/>
+   <Column ss:Width="100"/>
+   <Column ss:Width="140"/>
+
+   <!-- Tiêu đề báo cáo -->
+   <Row ss:Height="26">
+    <Cell ss:MergeAcross="5" ss:StyleID="Title"><Data ss:Type="String">BÁO CÁO TIẾN ĐỘ VÀ KPI CÔNG VIỆC</Data></Cell>
+   </Row>
+   <Row>
+    <Cell ss:MergeAcross="5" ss:StyleID="SubTitle"><Data ss:Type="String">Đối tượng: ${currentTargetName}  |  Ngày xuất: ${dateStr}</Data></Cell>
+   </Row>
+   <Row></Row>
+
+   <!-- I. TỔNG QUAN -->
+   <Row>
+    <Cell ss:StyleID="SectionHeader"><Data ss:Type="String">I. TỔNG QUAN CHỈ SỐ</Data></Cell>
+   </Row>
+   <Row ss:Height="22">
+    <Cell ss:StyleID="TableHeader"><Data ss:Type="String">Tổng số công việc</Data></Cell>
+    <Cell ss:StyleID="TableHeader"><Data ss:Type="String">Đã hoàn thành</Data></Cell>
+    <Cell ss:StyleID="TableHeader"><Data ss:Type="String">Đang thực hiện</Data></Cell>
+    <Cell ss:StyleID="TableHeader"><Data ss:Type="String">Quá hạn</Data></Cell>
+   </Row>
+   <Row ss:Height="20">
+    <Cell ss:StyleID="TableCellCenter"><Data ss:Type="Number">${this.stats().total}</Data></Cell>
+    <Cell ss:StyleID="CellCompleted"><Data ss:Type="Number">${this.stats().completed}</Data></Cell>
+    <Cell ss:StyleID="TableCellCenter"><Data ss:Type="Number">${this.stats().inProgress}</Data></Cell>
+    <Cell ss:StyleID="CellOverdue"><Data ss:Type="Number">${this.stats().overdue}</Data></Cell>
+   </Row>
+   <Row></Row>
+
+   <!-- II. TIẾN ĐỘ NHÂN SỰ -->
+   <Row>
+    <Cell ss:StyleID="SectionHeader"><Data ss:Type="String">II. TỔNG HỢP TIẾN ĐỘ THEO NHÂN SỰ</Data></Cell>
+   </Row>
+   <Row ss:Height="22">
+    <Cell ss:StyleID="TableHeader"><Data ss:Type="String">Nhân sự</Data></Cell>
+    <Cell ss:StyleID="TableHeader"><Data ss:Type="String">Tổng Task</Data></Cell>
+    <Cell ss:StyleID="TableHeader"><Data ss:Type="String">Hoàn thành</Data></Cell>
+    <Cell ss:StyleID="TableHeader"><Data ss:Type="String">Đang thực hiện</Data></Cell>
+    <Cell ss:StyleID="TableHeader"><Data ss:Type="String">Quá hạn</Data></Cell>
+    <Cell ss:StyleID="TableHeader"><Data ss:Type="String">Tỷ lệ hoàn thành</Data></Cell>
+   </Row>`;
+
+    this.workloadSummary().forEach(row => {
+      xml += `
+   <Row ss:Height="20">
+    <Cell ss:StyleID="TableCell"><Data ss:Type="String">${row.userName}</Data></Cell>
+    <Cell ss:StyleID="TableCellCenter"><Data ss:Type="Number">${row.total}</Data></Cell>
+    <Cell ss:StyleID="CellCompleted"><Data ss:Type="Number">${row.completed}</Data></Cell>
+    <Cell ss:StyleID="TableCellCenter"><Data ss:Type="Number">${row.inProgress}</Data></Cell>
+    <Cell ss:StyleID="CellOverdue"><Data ss:Type="Number">${row.overdue}</Data></Cell>
+    <Cell ss:StyleID="TableCellCenter"><Data ss:Type="String">${row.completionRate}%</Data></Cell>
+   </Row>`;
+    });
+
+    xml += `
+   <Row></Row>
+
+   <!-- III. TASK QUÁ HẠN -->
+   <Row>
+    <Cell ss:StyleID="SectionHeader"><Data ss:Type="String">III. DANH SÁCH CÔNG VIỆC QUÁ HẠN</Data></Cell>
+   </Row>
+   <Row ss:Height="22">
+    <Cell ss:StyleID="TableHeader"><Data ss:Type="String">Tiêu đề Task</Data></Cell>
+    <Cell ss:StyleID="TableHeader"><Data ss:Type="String">Người phụ trách</Data></Cell>
+    <Cell ss:StyleID="TableHeader"><Data ss:Type="String">Hạn hoàn thành</Data></Cell>
+    <Cell ss:StyleID="TableHeader"><Data ss:Type="String">Độ ưu tiên</Data></Cell>
+   </Row>`;
+
+    if (this.overdueTasks().length > 0) {
+      this.overdueTasks().forEach(t => {
+        const d = t.dueDate ? new Date(t.dueDate).toLocaleDateString('vi-VN') : 'Không xác định';
+        const p = t.priority === 'High' ? 'Cao' : (t.priority === 'Low' ? 'Thấp' : 'Trung bình');
+        xml += `
+   <Row ss:Height="20">
+    <Cell ss:StyleID="TableCell"><Data ss:Type="String">${t.title}</Data></Cell>
+    <Cell ss:StyleID="TableCell"><Data ss:Type="String">${this.getUserDisplayName(t.assigneeId)}</Data></Cell>
+    <Cell ss:StyleID="CellOverdue"><Data ss:Type="String">${d}</Data></Cell>
+    <Cell ss:StyleID="TableCellCenter"><Data ss:Type="String">${p}</Data></Cell>
+   </Row>`;
+      });
+    } else {
+      xml += `
+   <Row ss:Height="20">
+    <Cell ss:MergeAcross="3" ss:StyleID="TableCell"><Data ss:Type="String">Không có công việc nào bị quá hạn</Data></Cell>
+   </Row>`;
+    }
+
+    xml += `
+  </Table>
+ </Worksheet>
+</Workbook>`;
+
+    const blob = new Blob([xml], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    const fileName = `BaoCao_TienDo_${now.getTime()}.xls`;
+
+    link.setAttribute('href', url);
+    link.setAttribute('download', fileName);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    Swal.fire({
+      icon: 'success',
+      title: 'Xuất file thành công',
+      text: `File ${fileName} đã được tạo với đầy đủ định dạng bảng biểu!`,
+      timer: 2000,
+      showConfirmButton: false
+    });
   }
 }

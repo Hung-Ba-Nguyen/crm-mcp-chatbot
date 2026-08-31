@@ -1,144 +1,269 @@
-<mat-sidenav-container class="task-shell">
-  <mat-sidenav mode="side" opened class="task-sidenav">
-    <div class="sidenav-header">
-      <h2>Danh sách công việc</h2>
-      <p>Chọn công việc để trao đổi</p>
-      <!-- 1. Nút xem KPI Phòng Ban -->
-      <button mat-raised-button color="primary" (click)="testKpiApi()" style="margin-top: 8px; width: 100%;">
-        <mat-icon>bar_chart</mat-icon> Xem KPI phòng ban
+<div class="gemini-layout" [class.sidebar-collapsed]="!isSidebarOpen()">
+  <!-- SIDEBAR: DANH SÁCH TASK -->
+  <aside class="gemini-sidebar" [class.collapsed]="!isSidebarOpen()">
+    <div class="sidebar-top">
+      <div class="brand-header-row">
+        <div class="brand-title">
+          <!-- Icon Logo Bot Trợ Lý Riêng -->
+          <div class="mcp-bot-logo">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="3" y="6" width="18" height="14" rx="4" fill="url(#botGrad)" />
+              <path d="M12 2V6" stroke="url(#botGrad)" stroke-width="2" stroke-linecap="round" />
+              <circle cx="12" cy="2" r="1.5" fill="#6366f1" />
+              <circle cx="8.5" cy="12.5" r="1.8" fill="#ffffff" />
+              <circle cx="15.5" cy="12.5" r="1.8" fill="#ffffff" />
+              <path d="M9.5 16C10.2 16.8 11 17 12 17C13 17 13.8 16.8 14.5 16" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round" />
+              <line x1="1" y1="13" x2="3" y2="13" stroke="#818cf8" stroke-width="2" stroke-linecap="round" />
+              <line x1="21" y1="13" x2="23" y2="13" stroke="#818cf8" stroke-width="2" stroke-linecap="round" />
+              <defs>
+                <linearGradient id="botGrad" x1="3" y1="2" x2="21" y2="20" gradientUnits="userSpaceOnUse">
+                  <stop stop-color="#6366f1" />
+                  <stop offset="1" stop-color="#4338ca" />
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+          <div class="brand-text">
+            <h2>Trợ lý Công việc</h2>
+            <p>Hội thoại ngữ cảnh AI MCP</p>
+          </div>
+        </div>
+        <!-- Nút thu gọn Sidebar -->
+        <button type="button" class="btn-toggle-sidebar" (click)="toggleSidebar()" title="Thu gọn danh sách task">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="3" ry="3"></rect>
+            <line x1="9" y1="3" x2="9" y2="21"></line>
+            <polyline points="15 9 12 12 15 15"></polyline>
+          </svg>
+        </button>
+      </div>
+
+      <button type="button" class="btn-kpi-gradient" (click)="testKpiApi()">
+        <mat-icon>insights</mat-icon>
+        <span>Thống kê KPI phòng ban</span>
       </button>
     </div>
 
-    <mat-nav-list>
-      <!-- 2. Danh sách công việc -->
+    <div class="sidebar-task-list">
+      <div class="section-label">CÔNG VIỆC CỦA BẠN</div>
       @if (tasks.length > 0) {
       @for (task of tasks; track task.id) {
-      <a mat-list-item (click)="selectTask(task)" [class.active]="selectedTask?.id === task.id">
-        <span matListItemTitle>{{ task.title }}</span>
-        <span matListItemLine>{{ getStatusLabel(task.status) }}</span>
-      </a>
+      <div class="task-nav-item"
+           [class.active]="selectedTask?.id === task.id"
+           (click)="selectTask(task)">
+        <div class="task-nav-indicator" [attr.data-status]="task.status"></div>
+        <div class="task-nav-info">
+          <span class="task-nav-title">{{ task.title }}</span>
+          <span class="task-nav-status">{{ getStatusLabel(task.status) }}</span>
+        </div>
+      </div>
       }
       } @else {
-      <div style="padding: 16px; text-align: center; color: gray; font-size: 0.9em;">
-        Đang tải danh sách công việc...
+      <div class="task-empty-state">
+        <mat-icon>hourglass_empty</mat-icon>
+        <span>Đang nạp danh sách...</span>
       </div>
       }
-    </mat-nav-list>
-  </mat-sidenav>
-
-  <mat-sidenav-content class="main-content">
-    @if (selectedTask) {
-    <div class="chat-panel">
-      <div class="chat-header">
-        <div class="chat-header-inner">
-          <div class="chat-title-group">
-            <h3 title="{{ selectedTask.title }}" style="margin:0">{{ selectedTask.title }}</h3>
-            <span class="status-badge">{{ getStatusLabel(selectedTask.status) }}</span>
-          </div>
-          <button mat-stroked-button color="primary" (click)="summarizeTask()" class="summarize-btn" aria-label="Tóm tắt">
-            <span class="summarize-ico">✨</span>
-            <span class="summarize-text">Tóm tắt AI</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- 3. Khu vực tin nhắn thảo luận -->
-      <div class="messages-list" #chatContainer appAutoScroll style="overflow-y: auto;" (click)="onMarkdownClick($event)">
-        @if (messages().length > 0) {
-        <ng-container *ngFor="let msg of messages(); let i = index">
-          <!-- Dải phân cách ngày -->
-          <div class="date-separator" *ngIf="isNewDate(i, msg, messages())">
-            <span>{{ msg.timestamp | date:'dd/MM/yyyy' }}</span>
-          </div>
-
-          <div class="chat-message" [class.mine]="msg.sender === 'user'">
-            <div class="message-avatar" *ngIf="msg.sender === 'bot'">
-              <mat-icon style="font-size: 18px; width: 18px; height: 18px;">smart_toy</mat-icon>
-            </div>
-            <div class="message-content">
-              <span class="sender-name" *ngIf="msg.sender === 'bot'">Trợ lý AI</span>
-              <div class="message-bubble-wrapper">
-                <div class="message-bubble">
-                  <div class="msg-text" *ngIf="msg.sender === 'bot'">
-                    <app-markdown [data]="msg.processedText || msg.text"></app-markdown>
-                  </div>
-                  <div class="msg-text" *ngIf="msg.sender === 'user'">{{ msg.text }}</div>
-                  <div class="msg-time">{{ msg.timestamp | date:'HH:mm' }}</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </ng-container>
-        } @else {
-        <div class="empty-state">
-          <svg class="empty-ico" width="64" height="64" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <path d="M20 2H4C2.89543 2 2 2.89543 2 4V18C2 19.1046 2.89543 20 4 20H18L22 24V4C22 2.89543 21.1046 2 20 2Z" fill="#E6EEF8" />
-            <path d="M7.5 9.5H16.5" stroke="#B6C8DF" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
-            <path d="M7.5 12.5H13.5" stroke="#B6C8DF" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-          <div class="empty-text">Chưa có trao đổi nào cho công việc này.</div>
-        </div>
-        }
-
-        <!-- HIỆU ỨNG BOT ĐANG SUY NGHĨ -->
-        @if (isBotTyping()) {
-        <div class="chat-message">
-          <div class="message-avatar">
-            <mat-icon style="font-size: 18px; width: 18px; height: 18px;">smart_toy</mat-icon>
-          </div>
-          <div class="message-content">
-            <div class="message-bubble-wrapper">
-              <div class="message-bubble" style="opacity: 0.7; background: #f8fafc; font-style: italic;">
-                ✨ AI đang phân tích và tổng hợp...
-              </div>
-            </div>
-          </div>
-        </div>
-        }
-      </div>
-
-      <div class="composer">
-        <div class="composer-wrapper">
-          <input class="composer-input" [(ngModel)]="newMessage" placeholder="Nhập câu hỏi hoặc nội dung trao đổi..." (keyup.enter)="sendMessage()" aria-label="Message input" />
-          <button class="send-inline" mat-icon-button color="primary" aria-label="Send message" (click)="sendMessage()" [disabled]="!newMessage.trim()">
-            <mat-icon>send</mat-icon>
-          </button>
-        </div>
-      </div>
     </div>
+  </aside>
+
+  <!-- KHUNG CHAT CHÍNH -->
+  <main class="gemini-main">
+    @if (selectedTask) {
+    <!-- HEADER KHUNG CHAT -->
+    <header class="gemini-header">
+      <div class="header-left">
+        @if (!isSidebarOpen()) {
+        <button type="button" class="btn-open-sidebar" (click)="toggleSidebar()" title="Mở danh sách công việc">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="3" ry="3"></rect>
+            <line x1="9" y1="3" x2="9" y2="21"></line>
+            <polyline points="13 9 16 12 13 15"></polyline>
+          </svg>
+        </button>
+        }
+
+        <div class="task-title-wrap">
+          <div class="task-main-title">
+            <h3>{{ selectedTask.title }}</h3>
+            <span class="badge-gemini-status" [attr.data-status]="selectedTask.status">
+              {{ getStatusLabel(selectedTask.status) }}
+            </span>
+          </div>
+          <span class="task-id-tag">Mã task: {{ selectedTask.id }}</span>
+        </div>
+      </div>
+
+      <button type="button" class="btn-summarize-gemini" (click)="summarizeTask()">
+        <span class="gemini-gradient-text">⚡ Tóm tắt bằng AI</span>
+      </button>
+    </header>
+
+    <!-- KHU VỰC TIN NHẮN -->
+    <div class="gemini-chat-area" #chatContainer (click)="onMarkdownClick($event)">
+      <!-- QUICK PROMPTS CHIPS -->
+      <div class="gemini-quick-prompts">
+        <span class="quick-label">Gợi ý câu hỏi:</span>
+        <div class="chips-scroll">
+          <button type="button" class="gemini-chip" (click)="sendQuickPrompt('Hôm nay phòng IT có bao nhiêu việc trễ hạn?')">
+            ⚡ Phòng IT có bao nhiêu việc trễ hạn?
+          </button>
+          <button type="button" class="gemini-chip" (click)="sendQuickPrompt('Tôi đang có bao nhiêu việc cần duyệt?')">
+            📋 Tôi có bao nhiêu việc cần duyệt?
+          </button>
+          <button type="button" class="gemini-chip" (click)="sendQuickPrompt('Liệt kê các công việc sắp đến hạn trong tuần này của tôi')">
+            ⏳ Việc sắp đến hạn tuần này của tôi
+          </button>
+        </div>
+      </div>
+
+      @if (messages().length > 0) {
+      @for (msg of messages(); let i = $index; track i) {
+      <div class="date-divider" *ngIf="isNewDate(i, msg, messages())">
+        <span>{{ msg.timestamp | date:'dd/MM/yyyy' }}</span>
+      </div>
+
+      <div class="gemini-message-row" [class.user-row]="msg.sender === 'user'">
+        @if (msg.sender === 'bot') {
+        <div class="gemini-avatar">
+          <!-- Icon Avatar AI -->
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="4" y="6" width="16" height="13" rx="3.5" fill="#ffffff" fill-opacity="0.95" />
+            <circle cx="8.5" cy="11.5" r="1.5" fill="#4338ca" />
+            <circle cx="15.5" cy="11.5" r="1.5" fill="#4338ca" />
+            <path d="M10 15C10.6 15.6 11.2 15.8 12 15.8C12.8 15.8 13.4 15.6 14 15" stroke="#4338ca" stroke-width="1.4" stroke-linecap="round" />
+            <path d="M12 3V6" stroke="#ffffff" stroke-width="2" stroke-linecap="round" />
+          </svg>
+        </div>
+        }
+
+        <div class="gemini-bubble-container">
+          <div class="gemini-bubble">
+            @if (msg.sender === 'bot') {
+            <div class="markdown-body">
+              <app-markdown [data]="msg.processedText || msg.text"></app-markdown>
+            </div>
+            } @else {
+            <p class="user-text">{{ msg.text }}</p>
+            }
+          </div>
+          <span class="message-timestamp">{{ msg.timestamp | date:'HH:mm' }}</span>
+        </div>
+      </div>
+      }
+      } @else {
+      <div class="gemini-welcome">
+        <div class="welcome-bot-icon">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="3" y="6" width="18" height="14" rx="4" fill="url(#welcomeBotGrad)" />
+            <path d="M12 2V6" stroke="url(#welcomeBotGrad)" stroke-width="2" stroke-linecap="round" />
+            <circle cx="12" cy="2" r="1.6" fill="#6366f1" />
+            <circle cx="8.5" cy="12.5" r="2" fill="#ffffff" />
+            <circle cx="15.5" cy="12.5" r="2" fill="#ffffff" />
+            <path d="M9.5 16.2C10.3 17 11.1 17.2 12 17.2C12.9 17.2 13.7 17 14.5 16.2" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" />
+            <defs>
+              <linearGradient id="welcomeBotGrad" x1="3" y1="2" x2="21" y2="20" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#6366f1" />
+                <stop offset="1" stop-color="#4338ca" />
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <h4>Xin chào! Tôi là Trợ lý AI MCP</h4>
+        <p>Tôi có thể giúp bạn kiểm tra KPI, tóm tắt diễn biến task và tra cứu tiến độ công việc theo thời gian thực.</p>
+      </div>
+      }
+
+      <!-- BOT TYPING INDICATOR -->
+      @if (isBotTyping()) {
+      <div class="gemini-message-row typing-row">
+        <div class="gemini-avatar typing-pulse">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="4" y="6" width="16" height="13" rx="3.5" fill="#ffffff" fill-opacity="0.95" />
+            <circle cx="8.5" cy="11.5" r="1.5" fill="#4338ca" />
+            <circle cx="15.5" cy="11.5" r="1.5" fill="#4338ca" />
+            <path d="M12 3V6" stroke="#ffffff" stroke-width="2" stroke-linecap="round" />
+          </svg>
+        </div>
+        <div class="gemini-bubble typing-bubble">
+          <div class="typing-dots">
+            <span></span><span></span><span></span>
+          </div>
+          <span class="typing-text">Trợ lý AI đang phân tích dữ liệu...</span>
+          <button type="button" class="btn-cancel-req" (click)="cancelCurrentAiRequest()">Dừng</button>
+        </div>
+      </div>
+      }
+    </div>
+
+    <!-- THANH SOẠN THẢO PROMPT NỔI -->
+    <footer class="gemini-input-container">
+      <div class="floating-prompt-box">
+        <input type="text"
+               [(ngModel)]="newMessage"
+               placeholder="Hỏi trợ lý AI về công việc, tiến độ hoặc tóm tắt..."
+               (keyup.enter)="sendMessage()"
+               [disabled]="isBotTyping()" />
+        <button type="button"
+                class="btn-send-gemini"
+                (click)="sendMessage()"
+                [disabled]="!newMessage.trim() || isBotTyping()">
+          <mat-icon>arrow_upward</mat-icon>
+        </button>
+      </div>
+    </footer>
     } @else {
-    <div style="display: flex; height: 100%; justify-content: center; align-items: center; color: gray;">
-      <p>Chọn một công việc ở danh sách bên trái để bắt đầu trao đổi.</p>
+    <div class="no-task-selected">
+      @if (!isSidebarOpen()) {
+      <button type="button" class="btn-open-sidebar floating-corner-btn" (click)="toggleSidebar()" title="Mở danh sách công việc">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="3" ry="3"></rect>
+          <line x1="9" y1="3" x2="9" y2="21"></line>
+          <polyline points="13 9 16 12 13 15"></polyline>
+        </svg>
+      </button>
+      }
+      <div class="empty-icon-wrap">
+        <mat-icon>bubble_chart</mat-icon>
+      </div>
+      <h3>Chọn một công việc để bắt đầu</h3>
+      <p>Chọn bất kỳ task nào từ danh sách bên trái để xem ngữ cảnh và hội thoại cùng AI.</p>
     </div>
     }
-  </mat-sidenav-content>
-</mat-sidenav-container>
+  </main>
+</div>
 
-<!-- Modal KPI Phòng Ban -->
+<!-- MODAL KPI -->
 @if (showKpiModal()) {
-<div style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.6); z-index: 2147483647; display: flex; justify-content: center; align-items: center;" (click)="showKpiModal.set(false)">
-  <div style="background: white; border-radius: 16px; padding: 20px 22px; width: 92%; max-width: 520px; box-shadow: 0 20px 40px rgba(2,6,23,0.15); z-index: 2147483648;" (click)="$event.stopPropagation()">
-    <h3 class="kpi-title" style="font-weight: 700; color: #0f172a; margin-bottom: 16px;">KPI Phòng {{ kpiData()?.departmentName || 'Chuyên Môn' }}</h3>
-    <div class="kpi-grid">
-      <div class="kpi-item">
-        <div class="kpi-label">Tổng công việc</div>
-        <div class="kpi-value">{{ kpiData()?.totalTasks ?? 0 }}</div>
+<div class="gemini-modal-backdrop" (click)="showKpiModal.set(false)">
+  <div class="gemini-modal-card" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title-wrap">
+        <span class="sparkle-icon">📊</span>
+        <h3>Hiệu suất Phòng {{ kpiData()?.departmentName || 'Chuyên Môn' }}</h3>
       </div>
-      <div class="kpi-item">
-        <div class="kpi-label">Đã hoàn thành</div>
-        <div class="kpi-value" style="color: #16a34a;">{{ kpiData()?.completedTasks ?? 0 }}</div>
-      </div>
-      <div class="kpi-item">
-        <div class="kpi-label">Đang thực hiện</div>
-        <div class="kpi-value" style="color: #d97706;">{{ kpiData()?.inProgressTasks ?? 0 }}</div>
-      </div>
-      <div class="kpi-item">
-        <div class="kpi-label">Tỷ lệ hoàn thành</div>
-        <div class="kpi-value" style="color: #4f46e5;">{{ kpiData()?.completionRate ?? 0 }}%</div>
-      </div>
+      <button class="btn-close-modal" (click)="showKpiModal.set(false)">
+        <mat-icon>close</mat-icon>
+      </button>
     </div>
-    <div class="kpi-actions">
-      <button class="kpi-close" (click)="showKpiModal.set(false)">Đóng</button>
+
+    <div class="kpi-metric-grid">
+      <div class="metric-card">
+        <span class="metric-title">Tổng công việc</span>
+        <span class="metric-num">{{ kpiData()?.totalTasks ?? 0 }}</span>
+      </div>
+      <div class="metric-card metric-green">
+        <span class="metric-title">Đã hoàn thành</span>
+        <span class="metric-num">{{ kpiData()?.completedTasks ?? 0 }}</span>
+      </div>
+      <div class="metric-card metric-amber">
+        <span class="metric-title">Đang thực hiện</span>
+        <span class="metric-num">{{ kpiData()?.inProgressTasks ?? 0 }}</span>
+      </div>
+      <div class="metric-card metric-indigo">
+        <span class="metric-title">Tỷ lệ hoàn thành</span>
+        <span class="metric-num">{{ kpiData()?.completionRate ?? 0 }}%</span>
+      </div>
     </div>
   </div>
 </div>
