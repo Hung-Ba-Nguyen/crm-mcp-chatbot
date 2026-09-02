@@ -1,6 +1,7 @@
 import { Component, OnInit, inject, signal, ViewChild, ElementRef, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 import { DragDropModule, CdkDragDrop, moveItemInArray, transferArrayItem } from '@angular/cdk/drag-drop';
 import { MatIconModule } from '@angular/material/icon';
 import { HttpClient } from '@angular/common/http';
@@ -41,6 +42,7 @@ export class KanbanBoardComponent implements OnInit {
   private http = inject(HttpClient);
   private taskRpc = inject(TaskRpcService);
   private cdr = inject(ChangeDetectorRef);
+  private route = inject(ActivatedRoute);
 
   isLoading = signal(true);
   error = signal<string | null>(null);
@@ -79,6 +81,8 @@ export class KanbanBoardComponent implements OnInit {
   };
 
   @ViewChild('chatScrollContainer') chatScrollContainer!: ElementRef;
+
+  private pendingDirectTaskId: string | null = null;
 
   private getCurrentUserName(): string {
     const rawAuth = localStorage.getItem('current_user')
@@ -204,7 +208,46 @@ export class KanbanBoardComponent implements OnInit {
     this.loadUserMapFromLocal();
     this.fetchUsersFromApi();
     this.loadChatStoreFromLocal();
+    this.listenToRouteParams();
     this.loadTasks();
+  }
+
+  private listenToRouteParams(): void {
+    this.route.queryParams.subscribe(params => {
+      const tid = params['taskId'];
+      if (tid) {
+        this.pendingDirectTaskId = String(tid).trim();
+        this.checkAndOpenDirectTaskWithRetry(12);
+      }
+    });
+  }
+
+  private checkAndOpenDirectTaskWithRetry(retries = 10): void {
+    if (!this.pendingDirectTaskId) return;
+
+    const all = [
+      ...this.allTodo(),
+      ...this.allInProgress(),
+      ...this.allPending(),
+      ...this.allCompleted()
+    ];
+
+    if (all.length > 0) {
+      const target = all.find(t =>
+        String(t.id || '').trim().toLowerCase() === this.pendingDirectTaskId?.toLowerCase()
+      );
+
+      if (target) {
+        this.openTask(target);
+        this.pendingDirectTaskId = null;
+        try { this.cdr.detectChanges(); } catch { }
+        return;
+      }
+    }
+
+    if (retries > 0) {
+      setTimeout(() => this.checkAndOpenDirectTaskWithRetry(retries - 1), 150);
+    }
   }
 
   summarizeTaskChat(taskId: string, event: Event): void {
@@ -254,12 +297,17 @@ export class KanbanBoardComponent implements OnInit {
         `;
       }
 
-      const issueKeywords = ['lỗi', 'bug', 'fail', 'chậm', 'delay', 'vướng', 'kẹt', 'block', 'sai', 'không được', 'giao diện', 'hỏng'];
+      const issueKeywords = [
+        'lỗi', 'bug', 'fail', 'chậm', 'delay', 'vướng', 'kẹt', 'block', 'sai',
+        'không được', 'giao diện', 'hỏng', 'đơ', 'treo', 'lag', 'crash', 'đứng',
+        'không phản hồi', 'không có phản hồi', 'khó chịu', 'trục trặc', 'vấn đề',
+        'không ăn', 'không gửi', 'nút'
+      ];
       const issues: string[] = [];
       const plans: string[] = [];
 
       msgs.forEach(m => {
-        const textLower = m.text.toLowerCase().trim();
+        const textLower = (m.text || '').toLowerCase().trim();
         const hasIssue = issueKeywords.some(k => textLower.includes(k));
         if (hasIssue) {
           const cleanText = m.text.replace(/^(\-|\+|\*)\s*/, '');
@@ -305,7 +353,7 @@ export class KanbanBoardComponent implements OnInit {
           <div>
             <div style="font-weight: 700; color: #1e293b; margin-bottom: 3px;">🎯 Khuyến nghị hành động:</div>
             <div style="color: #475569; padding-left: 12px; border-left: 2px solid #cbd5e1;">
-              ${hasIssueBlock ? 'Cần kiểm tra và giải quyết dứt điểm phản hồi về giao diện trước khi bàn giao duyệt.' : 'Tiếp tục theo dõi để hoàn thành đúng thời hạn cam kết.'}
+              ${hasIssueBlock ? 'Cần kiểm tra và sửa lỗi chức năng/nút giao diện trước khi bàn giao duyệt.' : 'Tiếp tục theo dõi để hoàn thành đúng thời hạn cam kết.'}
             </div>
           </div>
         </div>
@@ -652,6 +700,11 @@ ${discussionContext}`;
 
         this.applyFilter(this.searchTerm);
         this.isLoading.set(false);
+
+        if (this.pendingDirectTaskId) {
+          this.checkAndOpenDirectTaskWithRetry(5);
+        }
+
         try { this.cdr.detectChanges(); } catch { }
       },
       error: (err) => {
