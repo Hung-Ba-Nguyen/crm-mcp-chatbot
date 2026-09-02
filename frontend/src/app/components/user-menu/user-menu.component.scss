@@ -1,0 +1,403 @@
+.user-menu-wrapper {
+  position: relative;
+  display: inline-block;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* NÚT TRIGGER HEADER */
+.avatar-trigger-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  padding: 4px 10px 4px 4px;
+  border-radius: 24px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    background: #f1f5f9;
+    border-color: #e2e8f0;
+  }
+
+  .avatar-circle {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.9rem;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+  }
+
+  .user-display-name {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: #0f172a;
+    max-width: 140px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .chevron-icon {
+    color: #64748b;
+    transition: transform 0.2s ease;
+
+    &.open {
+      transform: rotate(180deg);
+    }
+  }
+}
+
+/* DROPDOWN MENU CARD (GÓC PHẢI DƯỚI AVATAR) */
+.user-dropdown-card {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 255px;
+  background: #ffffff;
+  border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.14);
+  border: 1px solid #e2e8f0;
+  z-index: 1060;
+  padding: 14px 0 8px;
+  animation: dropdownFadeIn 0.16s ease-out;
+
+  .dropdown-user-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 16px 12px;
+
+    .large-avatar-circle {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: #1e1b4b;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 1.15rem;
+      flex-shrink: 0;
+    }
+
+    .header-user-info {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+
+      .info-name {
+        margin: 0;
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: #0f172a;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .info-email {
+        font-size: 0.78rem;
+        color: #64748b;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin-top: 1px;
+      }
+
+      .info-role {
+        font-size: 0.7rem;
+        font-weight: 600;
+        color: #4f46e5;
+        background: #eef2ff;
+        padding: 2px 7px;
+        border-radius: 4px;
+        align-self: flex-start;
+        margin-top: 4px;
+      }
+    }
+  }
+
+  .dropdown-divider {
+    height: 1px;
+    background: #f1f5f9;
+    margin: 4px 0;
+  }
+
+  .dropdown-action-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+
+    li {
+      padding: 2px 6px;
+    }
+  }
+
+  .dropdown-item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border: none;
+    background: transparent;
+    color: #334155;
+    font-size: 0.86rem;
+    font-weight: 500;
+    border-radius: 8px;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.12s ease;
+
+    svg {
+      color: #64748b;
+      flex-shrink: 0;
+    }
+
+    &:hover {
+      background: #f8fafc;
+      color: #0f172a;
+
+      svg {
+        color: #4f46e5;
+      }
+    }
+  }
+
+  .dropdown-logout-wrap {
+    padding: 2px 6px;
+
+    .logout-item {
+      color: #dc2626;
+
+      svg {
+        color: #dc2626;
+      }
+
+      &:hover {
+        background: #fef2f2;
+        color: #b91c1c;
+      }
+    }
+  }
+}
+
+.menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1055;
+  background: transparent;
+}
+
+/* ==================== CỐ ĐỊNH CHÍNH GIỮA TOÀN MÀN HÌNH ==================== */
+.user-modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(15, 23, 42, 0.48);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99999;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+.user-modal-card {
+  position: relative;
+  width: 440px;
+  max-width: 95vw;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 26px 28px;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.2);
+  box-sizing: border-box;
+  animation: modalPopCenter 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+
+    h3 {
+      margin: 0;
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .btn-close {
+      background: #f1f5f9;
+      border: none;
+      font-size: 20px;
+      line-height: 1;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      color: #64748b;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s ease;
+
+      &:hover {
+        background: #e2e8f0;
+        color: #0f172a;
+      }
+    }
+  }
+
+  .modal-form-body {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+
+      label {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #334155;
+
+        .required {
+          color: #ef4444;
+        }
+      }
+
+      .form-control {
+        width: 100%;
+        padding: 10px 14px;
+        border-radius: 8px;
+        border: 1.5px solid #cbd5e1;
+        font-size: 0.9rem;
+        color: #0f172a;
+        box-sizing: border-box;
+        outline: none;
+        transition: border 0.15s, box-shadow 0.15s;
+
+        &:focus {
+          border-color: #4f46e5;
+          box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+      }
+    }
+  }
+
+  .modal-actions-bar {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 24px;
+
+    .btn-secondary {
+      background: #ffffff;
+      border: 1.5px solid #cbd5e1;
+      color: #475569;
+      padding: 9px 20px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.88rem;
+      cursor: pointer;
+      transition: background 0.15s;
+
+      &:hover {
+        background: #f8fafc;
+      }
+    }
+
+    .btn-primary {
+      background: #007bff;
+      border: none;
+      color: #ffffff;
+      padding: 9px 24px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.88rem;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0, 123, 255, 0.25);
+      transition: background 0.15s;
+
+      &:hover:not(:disabled) {
+        background: #0069d9;
+      }
+
+      &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+    }
+  }
+
+  .modal-footer-links {
+    margin-top: 18px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+
+    .link-switch {
+      color: #007bff;
+      font-size: 0.84rem;
+      text-decoration: none;
+      font-weight: 500;
+      cursor: pointer;
+
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+
+    .link-danger {
+      color: #dc2626;
+      font-size: 0.84rem;
+      text-decoration: none;
+      font-weight: 500;
+      cursor: pointer;
+
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+  }
+}
+
+@keyframes dropdownFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes modalPopCenter {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}

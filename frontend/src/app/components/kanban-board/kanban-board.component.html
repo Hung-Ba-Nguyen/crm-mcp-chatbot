@@ -7,8 +7,11 @@
         <span class="stat-badge stat-med"><span class="dot"></span> ƯU TIÊN TRUNG BÌNH <b>{{ medCount() }}</b></span>
         <span class="stat-badge stat-low"><span class="dot"></span> ƯU TIÊN THẤP <b>{{ lowCount() }}</b></span>
       </div>
-      <div style="display:flex; gap:8px; align-items:center;">
-        <input class="kanban-search" type="text" placeholder="Tìm kiếm task..." (input)="onSearch($event)" />
+      <div class="kanban-actions">
+        <div class="search-wrap">
+          <mat-icon class="search-icon">search</mat-icon>
+          <input class="kanban-search" type="text" placeholder="Tìm kiếm task..." (input)="onSearch($event)" />
+        </div>
         <button class="chip" [class.active]="highPriorityOnly()" (click)="toggleHighPriority()">Ưu tiên cao</button>
         <button class="chip" [class.active]="overdueOnly()" (click)="toggleOverdue()">Quá hạn</button>
       </div>
@@ -18,11 +21,14 @@
     <div *ngIf="selectedTask()" class="kb-modal-backdrop" (click)="closeModal()">
       <div *ngIf="editingTask">
         <div class="kb-modal" (click)="$event.stopPropagation()">
-          <h3 class="modal-heading">Chi tiết Task</h3>
+          <div class="modal-header-top">
+            <h3 class="modal-heading">Chi tiết Task</h3>
+            <button class="btn-close-modal" (click)="closeModal()"><mat-icon>close</mat-icon></button>
+          </div>
 
           <div class="form-group">
             <div class="task-id-badge">
-              <span class="task-id-label">MÃ TASK:</span>
+              <span class="task-id-label">MÃ TASK</span>
               <span class="task-id-value">{{ editingTask.id }}</span>
             </div>
           </div>
@@ -52,59 +58,33 @@
             </div>
           </div>
 
-          <!-- Metadata Box Trình Bày ID và Tên Xuống Dòng Chuẩn Xác -->
-          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 18px; margin-top: 16px; display: flex; flex-direction: column; gap: 12px; font-size: 0.875rem;">
-
-            <!-- Department ID -->
-            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-              <span style="font-weight: 600; color: #64748b;">Phòng ban phụ trách:</span>
-              <div style="text-align: right;">
-                <div style="font-family: monospace; font-weight: 600; color: #0f172a;">
-                  {{ editingTask.departmentId || 'N/A' }}
-                </div>
-                @if (editingTask.departmentId) {
-                <div style="color: #6366f1; font-weight: 600; font-size: 0.8rem; margin-top: 2px;">
-                  ({{ getDepartmentName(editingTask.departmentId) }})
-                </div>
-                }
-              </div>
+          <!-- Metadata Box Hiển thị Tên Nhân sự & Phòng ban sạch sẽ -->
+          <div class="metadata-clean-box">
+            <div class="meta-row">
+              <span class="meta-label">Phòng ban phụ trách:</span>
+              <span class="meta-value dept-pill">{{ getDepartmentName(editingTask.departmentId) }}</span>
             </div>
 
-            <!-- Assignee ID -->
-            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-              <span style="font-weight: 600; color: #64748b;">Người phụ trách:</span>
-              <div style="text-align: right;">
-                <div style="font-family: monospace; font-weight: 600; color: #0f172a;">
-                  {{ editingTask.assigneeId || 'N/A' }}
-                </div>
-                @if (editingTask.assigneeId) {
-                <div style="color: #6366f1; font-weight: 600; font-size: 0.8rem; margin-top: 2px;">
-                  ({{ displayUserName(editingTask.assigneeId, editingTask.id) }})
-                </div>
-                }
-              </div>
+            <div class="meta-row">
+              <span class="meta-label">Người phụ trách:</span>
+              <span class="meta-value user-pill">{{ displayUserName(editingTask.assigneeId, editingTask.id) }}</span>
             </div>
 
-            <!-- Supervisor IDs -->
-            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-              <span style="font-weight: 600; color: #64748b;">Người giám sát:</span>
-              <div style="text-align: right;">
+            <div class="meta-row">
+              <span class="meta-label">Người giám sát:</span>
+              <div class="meta-value-col">
                 @if (getSupervisorsList(editingTask.supervisorIds).length === 0) {
-                <span style="color: #94a3b8; font-style: italic;">Không có</span>
+                <span class="muted-text">Chưa gán</span>
                 } @else {
                 @for (sup of getSupervisorsList(editingTask.supervisorIds); track sup.id) {
-                <div style="margin-bottom: 6px;">
-                  <div style="font-family: monospace; font-weight: 600; color: #0f172a;">{{ sup.id }}</div>
-                  <div style="color: #6366f1; font-weight: 600; font-size: 0.8rem; margin-top: 2px;">({{ sup.name }})</div>
-                </div>
+                <span class="user-pill supervisor">{{ sup.name }}</span>
                 }
                 }
               </div>
             </div>
-
           </div>
 
-          <div class="modal-actions" style="margin-top: 16px;">
+          <div class="modal-actions">
             <button class="btn-secondary" (click)="closeModal()">Đóng</button>
             <button class="btn-primary" (click)="saveTask()">Lưu thay đổi</button>
           </div>
@@ -115,45 +95,50 @@
 
   <div *ngIf="error()" class="kanban-error">{{ error() }}</div>
 
+  <!-- BẢNG KANBAN 4 CỘT -->
   <div class="kanban-columns">
-    <!-- TODO COLUMN -->
+    <!-- CỘT 1: CẦN LÀM -->
     <div class="kanban-col">
-      <div class="col-title">Cần làm</div>
-      <div #todoList="cdkDropList" cdkDropList [cdkDropListData]="allTodo()" class="col-list" [cdkDropListConnectedTo]="[inProgressList, completedList]" (cdkDropListDropped)="drop($event, 'Todo')">
+      <div class="col-title-wrap">
+        <span class="col-title">Cần làm</span>
+        <span class="col-counter">{{ filteredTodo().length }}</span>
+      </div>
+      <div #todoList="cdkDropList" cdkDropList [cdkDropListData]="allTodo()" class="col-list" [cdkDropListConnectedTo]="[inProgressList, pendingApprovalList, completedList]" (cdkDropListDropped)="drop($event, 'Todo')">
         <ng-container *ngIf="isLoading(); else todoContent">
-          <div *ngFor="let s of [1,2,3]" class="skeleton-card">
-            <div class="sk-title"></div>
-            <div class="sk-meta"><div class="sk-priority"></div></div>
-          </div>
+          <div *ngFor="let s of [1,2]" class="skeleton-card"></div>
         </ng-container>
         <ng-template #todoContent>
           <div *ngIf="filteredTodo().length === 0" class="empty-state">Không có task nào</div>
-          <div *ngFor="let t of filteredTodo(); let i = index" cdkDrag class="task-card" [ngClass]="'priority-' + (t.priority?.toLowerCase() || 'default')" (click)="openTask(t, $event)">
+          <div *ngFor="let t of filteredTodo()" cdkDrag class="task-card" [ngClass]="'priority-' + (t.priority?.toLowerCase() || 'default')" (click)="openTask(t, $event)">
             <button class="btn-delete" (click)="deleteTask(t.id, $event)" title="Xóa Task">
-              <mat-icon style="font-size: 18px; width: 18px; height: 18px;">delete_outline</mat-icon>
+              <mat-icon>delete_outline</mat-icon>
             </button>
+
+            <!-- HEADER CARD: TIÊU ĐỀ BÊN TRÁI, NÚT TÓM TẮT AI BÊN PHẢI -->
             <div class="card-header">
-              <span class="priority-dot"></span>
-              <h4 class="task-title">{{ t.title }}</h4>
+              <div class="title-with-dot">
+                <span class="priority-dot"></span>
+                <h4 class="task-title">{{ t.title }}</h4>
+              </div>
+              <button type="button" class="btn-ai-summarize-top" (click)="summarizeTaskChat(t.id, $event)" title="Tóm tắt nội dung task bằng AI">
+                <mat-icon>auto_awesome</mat-icon>
+                <span>Tóm tắt</span>
+              </button>
             </div>
+
+            <!-- FOOTER CARD: THÔNG THOÁNG, KHÔNG BỊ CHÈN ÉP -->
             <div class="task-meta-bottom">
-              <div class="avatar-group">
-                <div class="avatar-circle">
-                  <mat-icon style="font-size: 14px; width: 14px; height: 14px;">person</mat-icon>
-                </div>
-                <span [title]="displayUserName(t.assigneeId, t.id)" class="assignee-text">{{ displayUserName(t.assigneeId, t.id) }}</span>
+              <div class="avatar-group" [title]="displayUserName(t.assigneeId, t.id)">
+                <div class="avatar-circle"><mat-icon>person</mat-icon></div>
+                <span class="assignee-text">{{ displayUserName(t.assigneeId, t.id) }}</span>
               </div>
               <div class="task-actions-group">
-                <button type="button" class="btn-summarize-card" (click)="summarizeTaskChat(t.id, $event)" title="Tóm tắt Task bằng AI">
-                  <mat-icon style="font-size: 13px; width: 13px; height: 13px;">auto_awesome</mat-icon>
-                  <span>Tóm tắt</span>
-                </button>
-                <button type="button" class="chat-indicator-btn" (click)="openChat(t.id, $event)" title="Mở thảo luận">
-                  <mat-icon style="font-size: 16px; width: 16px; height: 16px;">chat_bubble_outline</mat-icon>
+                <button type="button" class="chat-indicator-btn" (click)="openChat(t.id, $event)" title="Mở thảo luận nhóm">
+                  <mat-icon>chat_bubble_outline</mat-icon>
                   <span>{{ getChatCountDisplay(t.id) }}</span>
                 </button>
-                <div class="due-date" [title]="getDueDateTooltip(t.dueDate)" [style.color]="isOverdueTask(t.dueDate) ? '#ef4444' : '#64748b'" [style.font-weight]="isOverdueTask(t.dueDate) ? '600' : '400'">
-                  <mat-icon style="font-size: 14px; width: 14px; height: 14px;">calendar_today</mat-icon>
+                <div class="due-date" [title]="getDueDateTooltip(t.dueDate)" [style.color]="isOverdueTask(t.dueDate) ? '#ef4444' : '#64748b'">
+                  <mat-icon>calendar_today</mat-icon>
                   <span>{{ t.dueDate ? (t.dueDate | date:'MM/dd') : 'Không hạn' }}</span>
                 </div>
               </div>
@@ -163,44 +148,44 @@
       </div>
     </div>
 
-    <!-- IN PROGRESS COLUMN -->
+    <!-- CỘT 2: ĐANG THỰC HIỆN -->
     <div class="kanban-col">
-      <div class="col-title">Đang thực hiện</div>
-      <div #inProgressList="cdkDropList" cdkDropList [cdkDropListData]="allInProgress()" class="col-list" [cdkDropListConnectedTo]="[todoList, completedList]" (cdkDropListDropped)="drop($event, 'InProgress')">
+      <div class="col-title-wrap">
+        <span class="col-title">Đang thực hiện</span>
+        <span class="col-counter inprog">{{ filteredInProgress().length }}</span>
+      </div>
+      <div #inProgressList="cdkDropList" cdkDropList [cdkDropListData]="allInProgress()" class="col-list" [cdkDropListConnectedTo]="[todoList, pendingApprovalList, completedList]" (cdkDropListDropped)="drop($event, 'InProgress')">
         <ng-container *ngIf="isLoading(); else inProgContent">
-          <div *ngFor="let s of [1,2,3]" class="skeleton-card">
-            <div class="sk-title"></div>
-            <div class="sk-meta"><div class="sk-priority"></div></div>
-          </div>
+          <div *ngFor="let s of [1,2]" class="skeleton-card"></div>
         </ng-container>
         <ng-template #inProgContent>
           <div *ngIf="filteredInProgress().length === 0" class="empty-state">Không có task nào</div>
-          <div *ngFor="let t of filteredInProgress(); let i = index" cdkDrag class="task-card" [ngClass]="'priority-' + (t.priority?.toLowerCase() || 'default')" (click)="openTask(t, $event)">
+          <div *ngFor="let t of filteredInProgress()" cdkDrag class="task-card" [ngClass]="'priority-' + (t.priority?.toLowerCase() || 'default')" (click)="openTask(t, $event)">
             <button class="btn-delete" (click)="deleteTask(t.id, $event)" title="Xóa Task">
-              <mat-icon style="font-size: 18px; width: 18px; height: 18px;">delete_outline</mat-icon>
+              <mat-icon>delete_outline</mat-icon>
             </button>
             <div class="card-header">
-              <span class="priority-dot"></span>
-              <h4 class="task-title">{{ t.title }}</h4>
+              <div class="title-with-dot">
+                <span class="priority-dot"></span>
+                <h4 class="task-title">{{ t.title }}</h4>
+              </div>
+              <button type="button" class="btn-ai-summarize-top" (click)="summarizeTaskChat(t.id, $event)" title="Tóm tắt nội dung task bằng AI">
+                <mat-icon>auto_awesome</mat-icon>
+                <span>Tóm tắt</span>
+              </button>
             </div>
             <div class="task-meta-bottom">
-              <div class="avatar-group">
-                <div class="avatar-circle">
-                  <mat-icon style="font-size: 14px; width: 14px; height: 14px;">person</mat-icon>
-                </div>
-                <span [title]="displayUserName(t.assigneeId, t.id)" class="assignee-text">{{ displayUserName(t.assigneeId, t.id) }}</span>
+              <div class="avatar-group" [title]="displayUserName(t.assigneeId, t.id)">
+                <div class="avatar-circle"><mat-icon>person</mat-icon></div>
+                <span class="assignee-text">{{ displayUserName(t.assigneeId, t.id) }}</span>
               </div>
               <div class="task-actions-group">
-                <button type="button" class="btn-summarize-card" (click)="summarizeTaskChat(t.id, $event)" title="Tóm tắt Task bằng AI">
-                  <mat-icon style="font-size: 13px; width: 13px; height: 13px;">auto_awesome</mat-icon>
-                  <span>Tóm tắt</span>
-                </button>
-                <button type="button" class="chat-indicator-btn" (click)="openChat(t.id, $event)" title="Mở thảo luận">
-                  <mat-icon style="font-size: 16px; width: 16px; height: 16px;">chat_bubble_outline</mat-icon>
+                <button type="button" class="chat-indicator-btn" (click)="openChat(t.id, $event)" title="Mở thảo luận nhóm">
+                  <mat-icon>chat_bubble_outline</mat-icon>
                   <span>{{ getChatCountDisplay(t.id) }}</span>
                 </button>
-                <div class="due-date" [title]="getDueDateTooltip(t.dueDate)" [style.color]="isOverdueTask(t.dueDate) ? '#ef4444' : '#64748b'" [style.font-weight]="isOverdueTask(t.dueDate) ? '600' : '400'">
-                  <mat-icon style="font-size: 14px; width: 14px; height: 14px;">calendar_today</mat-icon>
+                <div class="due-date" [title]="getDueDateTooltip(t.dueDate)" [style.color]="isOverdueTask(t.dueDate) ? '#ef4444' : '#64748b'">
+                  <mat-icon>calendar_today</mat-icon>
                   <span>{{ t.dueDate ? (t.dueDate | date:'MM/dd') : 'Không hạn' }}</span>
                 </div>
               </div>
@@ -210,44 +195,91 @@
       </div>
     </div>
 
-    <!-- COMPLETED COLUMN -->
+    <!-- CỘT 3: CHỜ DUYỆT -->
     <div class="kanban-col">
-      <div class="col-title">Đã hoàn thành</div>
-      <div #completedList="cdkDropList" cdkDropList [cdkDropListData]="allCompleted()" class="col-list" [cdkDropListConnectedTo]="[todoList, inProgressList]" (cdkDropListDropped)="drop($event, 'Completed')">
-        <ng-container *ngIf="isLoading(); else completedContent">
-          <div *ngFor="let s of [1,2,3]" class="skeleton-card">
-            <div class="sk-title"></div>
-            <div class="sk-meta"><div class="sk-priority"></div></div>
+      <div class="col-title-wrap">
+        <span class="col-title">Chờ duyệt</span>
+        <span class="col-counter pending">{{ filteredPending().length }}</span>
+      </div>
+      <div #pendingApprovalList="cdkDropList" cdkDropList [cdkDropListData]="allPending()" class="col-list" [cdkDropListConnectedTo]="[todoList, inProgressList, completedList]" (cdkDropListDropped)="drop($event, 'PendingApproval')">
+        <ng-container *ngIf="isLoading(); else pendingContent">
+          <div *ngFor="let s of [1,2]" class="skeleton-card"></div>
+        </ng-container>
+        <ng-template #pendingContent>
+          <div *ngIf="filteredPending().length === 0" class="empty-state">Không có task chờ duyệt</div>
+          <div *ngFor="let t of filteredPending()" cdkDrag class="task-card" [ngClass]="'priority-' + (t.priority?.toLowerCase() || 'default')" (click)="openTask(t, $event)">
+            <button class="btn-delete" (click)="deleteTask(t.id, $event)" title="Xóa Task">
+              <mat-icon>delete_outline</mat-icon>
+            </button>
+            <div class="card-header">
+              <div class="title-with-dot">
+                <span class="priority-dot"></span>
+                <h4 class="task-title">{{ t.title }}</h4>
+              </div>
+              <button type="button" class="btn-ai-summarize-top" (click)="summarizeTaskChat(t.id, $event)" title="Tóm tắt nội dung task bằng AI">
+                <mat-icon>auto_awesome</mat-icon>
+                <span>Tóm tắt</span>
+              </button>
+            </div>
+            <div class="task-meta-bottom">
+              <div class="avatar-group" [title]="displayUserName(t.assigneeId, t.id)">
+                <div class="avatar-circle"><mat-icon>person</mat-icon></div>
+                <span class="assignee-text">{{ displayUserName(t.assigneeId, t.id) }}</span>
+              </div>
+              <div class="task-actions-group">
+                <button type="button" class="chat-indicator-btn" (click)="openChat(t.id, $event)" title="Mở thảo luận nhóm">
+                  <mat-icon>chat_bubble_outline</mat-icon>
+                  <span>{{ getChatCountDisplay(t.id) }}</span>
+                </button>
+                <div class="due-date" [title]="getDueDateTooltip(t.dueDate)" [style.color]="isOverdueTask(t.dueDate) ? '#ef4444' : '#64748b'">
+                  <mat-icon>calendar_today</mat-icon>
+                  <span>{{ t.dueDate ? (t.dueDate | date:'MM/dd') : 'Không hạn' }}</span>
+                </div>
+              </div>
+            </div>
           </div>
+        </ng-template>
+      </div>
+    </div>
+
+    <!-- CỘT 4: ĐÃ HOÀN THÀNH -->
+    <div class="kanban-col">
+      <div class="col-title-wrap">
+        <span class="col-title">Đã hoàn thành</span>
+        <span class="col-counter done">{{ filteredCompleted().length }}</span>
+      </div>
+      <div #completedList="cdkDropList" cdkDropList [cdkDropListData]="allCompleted()" class="col-list" [cdkDropListConnectedTo]="[todoList, inProgressList, pendingApprovalList]" (cdkDropListDropped)="drop($event, 'Completed')">
+        <ng-container *ngIf="isLoading(); else completedContent">
+          <div *ngFor="let s of [1,2]" class="skeleton-card"></div>
         </ng-container>
         <ng-template #completedContent>
           <div *ngIf="filteredCompleted().length === 0" class="empty-state">Không có task nào</div>
-          <div *ngFor="let t of filteredCompleted(); let i = index" cdkDrag class="task-card" [ngClass]="'priority-' + (t.priority?.toLowerCase() || 'default')" (click)="openTask(t, $event)">
+          <div *ngFor="let t of filteredCompleted()" cdkDrag class="task-card" [ngClass]="'priority-' + (t.priority?.toLowerCase() || 'default')" (click)="openTask(t, $event)">
             <button class="btn-delete" (click)="deleteTask(t.id, $event)" title="Xóa Task">
-              <mat-icon style="font-size: 18px; width: 18px; height: 18px;">delete_outline</mat-icon>
+              <mat-icon>delete_outline</mat-icon>
             </button>
             <div class="card-header">
-              <span class="priority-dot"></span>
-              <h4 class="task-title">{{ t.title }}</h4>
+              <div class="title-with-dot">
+                <span class="priority-dot"></span>
+                <h4 class="task-title">{{ t.title }}</h4>
+              </div>
+              <button type="button" class="btn-ai-summarize-top" (click)="summarizeTaskChat(t.id, $event)" title="Tóm tắt nội dung task bằng AI">
+                <mat-icon>auto_awesome</mat-icon>
+                <span>Tóm tắt</span>
+              </button>
             </div>
             <div class="task-meta-bottom">
-              <div class="avatar-group">
-                <div class="avatar-circle">
-                  <mat-icon style="font-size: 14px; width: 14px; height: 14px;">person</mat-icon>
-                </div>
-                <span [title]="displayUserName(t.assigneeId, t.id)" class="assignee-text">{{ displayUserName(t.assigneeId, t.id) }}</span>
+              <div class="avatar-group" [title]="displayUserName(t.assigneeId, t.id)">
+                <div class="avatar-circle"><mat-icon>person</mat-icon></div>
+                <span class="assignee-text">{{ displayUserName(t.assigneeId, t.id) }}</span>
               </div>
               <div class="task-actions-group">
-                <button type="button" class="btn-summarize-card" (click)="summarizeTaskChat(t.id, $event)" title="Tóm tắt Task bằng AI">
-                  <mat-icon style="font-size: 13px; width: 13px; height: 13px;">auto_awesome</mat-icon>
-                  <span>Tóm tắt</span>
-                </button>
-                <button type="button" class="chat-indicator-btn" (click)="openChat(t.id, $event)" title="Mở thảo luận">
-                  <mat-icon style="font-size: 16px; width: 16px; height: 16px;">chat_bubble_outline</mat-icon>
+                <button type="button" class="chat-indicator-btn" (click)="openChat(t.id, $event)" title="Mở thảo luận nhóm">
+                  <mat-icon>chat_bubble_outline</mat-icon>
                   <span>{{ getChatCountDisplay(t.id) }}</span>
                 </button>
-                <div class="due-date" [title]="getDueDateTooltip(t.dueDate)" [style.color]="isOverdueTask(t.dueDate) ? '#ef4444' : '#64748b'" [style.font-weight]="isOverdueTask(t.dueDate) ? '600' : '400'">
-                  <mat-icon style="font-size: 14px; width: 14px; height: 14px;">calendar_today</mat-icon>
+                <div class="due-date" [title]="getDueDateTooltip(t.dueDate)" [style.color]="isOverdueTask(t.dueDate) ? '#ef4444' : '#64748b'">
+                  <mat-icon>calendar_today</mat-icon>
                   <span>{{ t.dueDate ? (t.dueDate | date:'MM/dd') : 'Không hạn' }}</span>
                 </div>
               </div>
@@ -258,17 +290,25 @@
     </div>
   </div>
 
-  <!-- Sidebar Chat Độc Lập -->
+  <!-- SIDEBAR THẢO LUẬN GIỮA CÁC THÀNH VIÊN USER -->
   <div class="chat-sidebar" [class.open]="isChatOpen()">
     <div class="chat-header">
-      <h4>Thảo luận Task</h4>
+      <div class="chat-header-title">
+        <mat-icon>forum</mat-icon>
+        <div>
+          <h4>Thảo luận Task</h4>
+          <span class="chat-subtitle">Trao đổi nội bộ giữa các thành viên</span>
+        </div>
+      </div>
       <button class="btn-close-chat" (click)="closeChat()"><mat-icon>close</mat-icon></button>
     </div>
+
     <div class="chat-body" #chatScrollContainer>
       <div *ngIf="currentChat().length === 0" class="chat-placeholder">
-        <mat-icon style="font-size: 48px; width: 48px; height: 48px; color: #cbd5e1; margin-bottom: 16px;">forum</mat-icon>
-        <p>Chưa có tin nhắn nào.<br>Hãy là người đầu tiên thảo luận!</p>
+        <mat-icon style="font-size: 44px; width: 44px; height: 44px; color: #cbd5e1; margin-bottom: 12px;">forum</mat-icon>
+        <p>Chưa có tin nhắn nào.<br>Hãy là người đầu tiên trao đổi tiến độ!</p>
       </div>
+
       <ng-container *ngFor="let msg of currentChat(); let i = index">
         <div class="date-separator" *ngIf="isNewDate(i, msg, currentChat())">
           <span>{{ msg.timestamp | date:'dd/MM/yyyy' }}</span>
@@ -276,7 +316,7 @@
 
         <div class="chat-message" [class.mine]="msg.isMine">
           <div class="message-avatar" *ngIf="!msg.isMine">
-            <mat-icon style="font-size: 18px; width: 18px; height: 18px;">person</mat-icon>
+            <mat-icon>person</mat-icon>
           </div>
           <div class="message-content">
             <span class="sender-name" *ngIf="!msg.isMine">{{ msg.sender }}</span>
@@ -285,8 +325,15 @@
                 <div class="msg-text">{{ msg.text }}</div>
                 <div class="msg-time">{{ msg.timestamp | date:'HH:mm' }}</div>
               </div>
-              <button class="reaction-btn" [class.active]="msg.hasHearted" [class.has-count]="(msg.hearts || 0) > 0" (click)="toggleHeart(msg.id)">
-                <mat-icon class="heart-icon">{{ msg.hasHearted ? 'favorite' : 'thumb_up_off_alt' }}</mat-icon>
+
+              <!-- NÚT THẢ TIM TIN NHẮN -->
+              <button type="button"
+                      class="reaction-btn"
+                      [class.active]="msg.hasHearted"
+                      [class.has-count]="(msg.hearts || 0) > 0"
+                      (click)="toggleHeart(msg.id)"
+                      title="Thả tim tin nhắn">
+                <mat-icon class="heart-icon">{{ msg.hasHearted ? 'favorite' : 'favorite_border' }}</mat-icon>
                 <span class="heart-count" *ngIf="(msg.hearts || 0) > 0">{{ msg.hearts }}</span>
               </button>
             </div>
@@ -294,9 +341,10 @@
         </div>
       </ng-container>
     </div>
+
     <div class="chat-footer">
-      <input type="text" placeholder="Nhập tin nhắn..." [(ngModel)]="newMessage" (keyup.enter)="sendChatMessage()" />
-      <button (click)="sendChatMessage()" [disabled]="!newMessage().trim()"><mat-icon>send</mat-icon></button>
+      <input type="text" placeholder="Nhập tin nhắn trao đổi nội bộ..." [(ngModel)]="newMessage" (keyup.enter)="sendChatMessage()" />
+      <button (click)="sendChatMessage()" [disabled]="!newMessage.trim()"><mat-icon>send</mat-icon></button>
     </div>
   </div>
   <div class="chat-backdrop" *ngIf="isChatOpen()" (click)="closeChat()"></div>

@@ -33,12 +33,11 @@ export class CreateTaskComponent implements OnInit {
     { id: '6a709be6af0d8b17ec325928', name: 'Phòng Nhân Sự (HR)' }
   ];
 
+  // Danh sách cố định theo thứ tự chuẩn
   users: OptionItem[] = [
-    { id: '64b8d5f1e1a3f5a0c2d9b7a1', name: 'Nguyễn Bá Hùng (Dev Lead)' },
-    { id: '64b8d5f1e1a3f5a0c2d9b7a2', name: 'Duy Linh (Backend Dev)' },
-    { id: '64b8d5f1e1a3f5a0c2d9b7a3', name: 'Trần Thị Lập Trình (Fullstack Dev)' },
-    { id: '64b8d5f1e1a3f5a0c2d9b7a4', name: 'Lê Văn Kiểm Thử (QA/QC Tester)' },
-    { id: '64b8d5f1e1a3f5a0c2d9b7a5', name: 'Nguyễn Văn Quản Lý (Admin/Manager)' }
+    { id: '6a798756195040ed1af9cf22', name: 'Lê Văn Kiểm Thử' },
+    { id: '6a798756195040ed1af9cf20', name: 'Nguyễn Văn Quản Lý' },
+    { id: '6a798756195040ed1af9cf21', name: 'Trần Thị Lập Trình' }
   ];
 
   taskForm = {
@@ -47,9 +46,10 @@ export class CreateTaskComponent implements OnInit {
     departmentId: '',
     assigneeId: '',
     dueDate: '',
-    priority: 'Medium',
-    supervisorIds: ''
+    priority: 'Medium'
   };
+
+  selectedSupervisorIds: string[] = [];
 
   ngOnInit(): void {
     this.fetchUsersFromApi();
@@ -59,19 +59,37 @@ export class CreateTaskComponent implements OnInit {
     const url = `${environment.apiUrl.replace(/\/+$/, '')}/Users`;
     this.http.get<any[]>(url).subscribe({
       next: (res) => {
-        if (Array.isArray(res) && res.length > 0) {
-          const apiUsers = res.map(u => ({
-            id: String(u.id || u.Id || u._id || ''),
-            name: String(u.fullName || u.FullName || u.userName || u.UserName || u.email || 'User')
+        let list: any[] = [];
+        if (Array.isArray(res)) list = res;
+        else if (Array.isArray((res as any)?.users)) list = (res as any).users;
+        else if (Array.isArray((res as any)?.data)) list = (res as any).data;
+
+        if (list.length > 0) {
+          const apiUsers = list.map(u => ({
+            id: String(u.id || u.Id || u._id || '').trim(),
+            name: String(u.fullName || u.FullName || u.userName || u.UserName || u.name || 'User').trim()
           })).filter(u => u.id);
 
           if (apiUsers.length > 0) {
-            this.users = apiUsers;
+            // Sắp xếp cố định theo tên để tránh bị xáo trộn thứ tự
+            this.users = apiUsers.sort((a, b) => a.name.localeCompare(b.name, 'vi'));
           }
         }
       },
-      error: () => { /* Giữ danh sách mặc định nếu endpoint /Users chưa có */ }
+      error: () => { }
     });
+  }
+
+  isSupervisorSelected(userId: string): boolean {
+    return this.selectedSupervisorIds.includes(userId);
+  }
+
+  toggleSupervisor(userId: string): void {
+    if (this.isSupervisorSelected(userId)) {
+      this.selectedSupervisorIds = this.selectedSupervisorIds.filter(id => id !== userId);
+    } else {
+      this.selectedSupervisorIds.push(userId);
+    }
   }
 
   hasFieldError(field: 'title' | 'departmentId' | 'assigneeId' | 'dueDate'): boolean {
@@ -79,7 +97,7 @@ export class CreateTaskComponent implements OnInit {
     return !this.taskForm[field] || String(this.taskForm[field]).trim() === '';
   }
 
-  submit() {
+  submit(): void {
     this.isSubmitted.set(true);
     this.errorMessage.set(null);
     this.successMessage.set(null);
@@ -99,7 +117,7 @@ export class CreateTaskComponent implements OnInit {
         icon: 'warning',
         title: msg,
         showConfirmButton: false,
-        timer: 3000,
+        timer: 2800,
         timerProgressBar: true
       });
       return;
@@ -107,16 +125,21 @@ export class CreateTaskComponent implements OnInit {
 
     this.isLoading.set(true);
 
+    const mapPriorityToNum = (p: string): number => {
+      const val = p.toLowerCase();
+      if (val === 'low') return 0;
+      if (val === 'high') return 2;
+      return 1;
+    };
+
     const payload = {
       title: this.taskForm.title.trim(),
       description: this.taskForm.description.trim(),
       departmentId: this.taskForm.departmentId.trim(),
       assigneeId: this.taskForm.assigneeId.trim(),
-      priority: this.taskForm.priority,
+      priority: mapPriorityToNum(this.taskForm.priority),
       dueDate: new Date(this.taskForm.dueDate).toISOString(),
-      supervisorIds: this.taskForm.supervisorIds
-        ? [this.taskForm.supervisorIds.trim()]
-        : []
+      supervisorIds: this.selectedSupervisorIds
     };
 
     this.taskRpc.createTask(payload).subscribe({
@@ -142,9 +165,9 @@ export class CreateTaskComponent implements OnInit {
           departmentId: '',
           assigneeId: '',
           dueDate: '',
-          priority: 'Medium',
-          supervisorIds: ''
+          priority: 'Medium'
         };
+        this.selectedSupervisorIds = [];
       },
       error: (err: any) => {
         this.isLoading.set(false);
