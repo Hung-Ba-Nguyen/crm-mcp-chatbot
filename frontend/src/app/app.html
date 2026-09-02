@@ -25,10 +25,9 @@
     <a [routerLink]="['/create-task']" routerLinkActive="active">Tạo công việc</a>
     <a [routerLink]="['/dashboard']" routerLinkActive="active">Báo cáo tiến độ</a>
     <a [routerLink]="['/kanban']" routerLinkActive="active">Bảng công việc</a>
-    <a [routerLink]="['/update-status']" routerLinkActive="active">Cập nhật trạng thái</a>
   </div>
 
-  <!-- CỤM THÔNG BÁO BÊN PHẢI -->
+  <!-- CỤM THÔNG BÁO VÀ THÔNG TIN TÀI KHOẢN BÊN PHẢI -->
   <div class="nav-right-cluster">
     <!-- Chuông 1: Việc mới -->
     <div class="notif-wrapper">
@@ -151,6 +150,9 @@
       </div>
       }
     </div>
+
+    <!-- COMPONENT USER MENU (AVATAR, PROFILE, ĐỔI MẬT KHẨU, ĐĂNG XUẤT) -->
+    <app-user-menu></app-user-menu>
   </div>
 </nav>
 }

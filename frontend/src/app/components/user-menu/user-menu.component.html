@@ -1,0 +1,140 @@
+<div class="user-menu-wrapper">
+  <!-- NÚT AVATAR KÍCH HOẠT MENU (GÓC PHẢI HEADER) -->
+  <button type="button" class="avatar-trigger-btn" (click)="toggleDropdown($event)">
+    <div class="avatar-circle">
+      <span>{{ getAvatarInitial() }}</span>
+    </div>
+    <span class="user-display-name">{{ currentUser.fullName || currentUser.userName }}</span>
+    <svg class="chevron-icon" [class.open]="isDropdownOpen()" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="6 9 12 15 18 9"></polyline>
+    </svg>
+  </button>
+
+  <!-- DROPDOWN MENU KHI BẤM VÀO AVATAR -->
+  @if (isDropdownOpen()) {
+  <div class="user-dropdown-card" (click)="$event.stopPropagation()">
+    <div class="dropdown-user-header">
+      <div class="large-avatar-circle">
+        <span>{{ getAvatarInitial() }}</span>
+      </div>
+      <div class="header-user-info">
+        <h4 class="info-name">{{ currentUser.fullName || currentUser.userName }}</h4>
+        <span class="info-email">{{ currentUser.email }}</span>
+        <span class="info-role">{{ currentUser.role || 'Thành viên' }}</span>
+      </div>
+    </div>
+
+    <div class="dropdown-divider"></div>
+
+    <ul class="dropdown-action-list">
+      <li>
+        <button type="button" class="dropdown-item" (click)="openUpdateProfileModal()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+          </svg>
+          <span>Cập nhật tài khoản</span>
+        </button>
+      </li>
+      <li>
+        <button type="button" class="dropdown-item" (click)="openChangePasswordModal()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 2l-2 2m-1.5 1.5L16 7l-1.5-1.5M7 10a5 5 0 1 1 5 5H4v-4l3-1z"></path>
+          </svg>
+          <span>Đổi mật khẩu</span>
+        </button>
+      </li>
+    </ul>
+
+    <div class="dropdown-divider"></div>
+
+    <div class="dropdown-logout-wrap">
+      <button type="button" class="dropdown-item logout-item" (click)="onLogout()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+          <polyline points="16 17 21 12 16 7"></polyline>
+          <line x1="21" y1="12" x2="9" y2="12"></line>
+        </svg>
+        <span>Đăng xuất</span>
+      </button>
+    </div>
+  </div>
+  }
+
+  <!-- BACKDROP ẨN MENU KHI CLICK RA NGOÀI -->
+  @if (isDropdownOpen()) {
+  <div class="menu-backdrop" (click)="isDropdownOpen.set(false)"></div>
+  }
+</div>
+
+<!-- ==================== MODAL 1: CẬP NHẬT TÀI KHOẢN ==================== -->
+@if (showProfileModal()) {
+<div class="user-modal-backdrop" (click)="closeProfileModal()">
+  <div class="user-modal-card" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>Cập nhật tài khoản</h3>
+      <button type="button" class="btn-close" (click)="closeProfileModal()">&times;</button>
+    </div>
+
+    <div class="modal-form-body">
+      <div class="form-group">
+        <label>Tên <span class="required">*</span></label>
+        <input type="text" [(ngModel)]="profileForm.fullName" placeholder="Nhập họ và tên..." class="form-control" />
+      </div>
+
+      <div class="form-group">
+        <label>Email <span class="required">*</span></label>
+        <input type="email" [(ngModel)]="profileForm.email" placeholder="example@company.com" class="form-control" />
+      </div>
+
+      <div class="form-group">
+        <label>Địa chỉ</label>
+        <input type="text" [(ngModel)]="profileForm.address" placeholder="Nhập tỉnh/thành phố..." class="form-control" />
+      </div>
+    </div>
+
+    <div class="modal-actions-bar">
+      <button type="button" class="btn-secondary" (click)="closeProfileModal()">Đóng</button>
+      <button type="button" class="btn-primary" (click)="saveProfile()" [disabled]="isSubmitting()">
+        {{ isSubmitting() ? 'Đang lưu...' : 'Xác nhận' }}
+      </button>
+    </div>
+  </div>
+</div>
+}
+
+<!-- ==================== MODAL 2: ĐỔI MẬT KHẨU ==================== -->
+@if (showPasswordModal()) {
+<div class="user-modal-backdrop" (click)="closePasswordModal()">
+  <div class="user-modal-card" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <h3>Đổi mật khẩu</h3>
+      <button type="button" class="btn-close" (click)="closePasswordModal()">&times;</button>
+    </div>
+
+    <div class="modal-form-body">
+      <div class="form-group">
+        <label>Mật khẩu cũ <span class="required">*</span></label>
+        <input type="password" [(ngModel)]="passwordForm.currentPassword" placeholder="Nhập mật khẩu hiện tại..." class="form-control" />
+      </div>
+
+      <div class="form-group">
+        <label>Mật khẩu mới <span class="required">*</span></label>
+        <input type="password" [(ngModel)]="passwordForm.newPassword" placeholder="Tối thiểu 6 ký tự..." class="form-control" />
+      </div>
+
+      <div class="form-group">
+        <label>Xác nhận mật khẩu mới <span class="required">*</span></label>
+        <input type="password" [(ngModel)]="passwordForm.confirmPassword" placeholder="Nhập lại mật khẩu mới..." class="form-control" />
+      </div>
+    </div>
+
+    <div class="modal-actions-bar">
+      <button type="button" class="btn-secondary" (click)="closePasswordModal()">Đóng</button>
+      <button type="button" class="btn-primary" (click)="savePassword()" [disabled]="isSubmitting()">
+        {{ isSubmitting() ? 'Đang xử lý...' : 'Xác nhận' }}
+      </button>
+    </div>
+  </div>
+</div>
+}

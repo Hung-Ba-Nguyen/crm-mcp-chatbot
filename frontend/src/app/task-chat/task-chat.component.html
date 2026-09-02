@@ -1,36 +1,32 @@
 <div class="gemini-layout" [class.sidebar-collapsed]="!isSidebarOpen()">
-  <!-- SIDEBAR: DANH SÁCH TASK -->
+  <!-- SIDEBAR -->
   <aside class="gemini-sidebar" [class.collapsed]="!isSidebarOpen()">
     <div class="sidebar-top">
       <div class="brand-header-row">
         <div class="brand-title">
-          <!-- Icon Logo Bot Trợ Lý Riêng -->
           <div class="mcp-bot-logo">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <rect x="3" y="6" width="18" height="14" rx="4" fill="url(#botGrad)" />
               <path d="M12 2V6" stroke="url(#botGrad)" stroke-width="2" stroke-linecap="round" />
               <circle cx="12" cy="2" r="1.5" fill="#6366f1" />
               <circle cx="8.5" cy="12.5" r="1.8" fill="#ffffff" />
               <circle cx="15.5" cy="12.5" r="1.8" fill="#ffffff" />
               <path d="M9.5 16C10.2 16.8 11 17 12 17C13 17 13.8 16.8 14.5 16" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round" />
-              <line x1="1" y1="13" x2="3" y2="13" stroke="#818cf8" stroke-width="2" stroke-linecap="round" />
-              <line x1="21" y1="13" x2="23" y2="13" stroke="#818cf8" stroke-width="2" stroke-linecap="round" />
               <defs>
                 <linearGradient id="botGrad" x1="3" y1="2" x2="21" y2="20" gradientUnits="userSpaceOnUse">
-                  <stop stop-color="#6366f1" />
-                  <stop offset="1" stop-color="#4338ca" />
+                  <stop offset="0%" stop-color="#4f46e5" />
+                  <stop offset="100%" stop-color="#7c3aed" />
                 </linearGradient>
               </defs>
             </svg>
           </div>
           <div class="brand-text">
-            <h2>Trợ lý Công việc</h2>
-            <p>Hội thoại ngữ cảnh AI MCP</p>
+            <h2>TaskFlow AI</h2>
+            <p>Dev Intelligence Hub</p>
           </div>
         </div>
-        <!-- Nút thu gọn Sidebar -->
-        <button type="button" class="btn-toggle-sidebar" (click)="toggleSidebar()" title="Thu gọn danh sách task">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <button type="button" class="btn-toggle-sidebar" (click)="toggleSidebar()" title="Thu gọn Sidebar">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <rect x="3" y="3" width="18" height="18" rx="3" ry="3"></rect>
             <line x1="9" y1="3" x2="9" y2="21"></line>
             <polyline points="15 9 12 12 15 15"></polyline>
@@ -38,44 +34,77 @@
         </button>
       </div>
 
-      <button type="button" class="btn-kpi-gradient" (click)="testKpiApi()">
-        <mat-icon>insights</mat-icon>
-        <span>Thống kê KPI phòng ban</span>
-      </button>
-    </div>
+      <div class="sidebar-quick-hub">
+        <button type="button"
+                class="hub-btn"
+                [class.active]="selectedTask === null"
+                (click)="selectGlobalAssistant()">
+          <mat-icon>terminal</mat-icon>
+          <span>Trợ lý Toàn Cục</span>
+        </button>
 
-    <div class="sidebar-task-list">
-      <div class="section-label">CÔNG VIỆC CỦA BẠN</div>
-      @if (tasks.length > 0) {
-      @for (task of tasks; track task.id) {
-      <div class="task-nav-item"
-           [class.active]="selectedTask?.id === task.id"
-           (click)="selectTask(task)">
-        <div class="task-nav-indicator" [attr.data-status]="task.status"></div>
-        <div class="task-nav-info">
-          <span class="task-nav-title">{{ task.title }}</span>
-          <span class="task-nav-status">{{ getStatusLabel(task.status) }}</span>
+        <div class="hub-row">
+          <button type="button" class="hub-btn-mini" (click)="openDailyBriefing()" title="Báo cáo đầu ngày">
+            <mat-icon>wb_sunny</mat-icon>
+            <span>Briefing</span>
+          </button>
+          <button type="button" class="hub-btn-mini" (click)="openKpiModal()" title="Chỉ số KPI phòng">
+            <mat-icon>monitoring</mat-icon>
+            <span>KPI</span>
+          </button>
         </div>
       </div>
-      }
-      } @else {
-      <div class="task-empty-state">
-        <mat-icon>hourglass_empty</mat-icon>
-        <span>Đang nạp danh sách...</span>
+    </div>
+
+    <!-- DANH SÁCH TASK -->
+    <div class="sidebar-task-section">
+      <div class="task-section-header">
+        <span class="section-label">DANH SÁCH TASK ({{ activeChatTasks().length }})</span>
+        @if (activeChatTasks().length > 0) {
+        <button type="button" class="btn-open-picker" (click)="showTaskPickerModal.set(true)" title="Thêm Task thảo luận (Ctrl + K)">
+          <mat-icon>add</mat-icon>
+          <span>Thêm</span>
+        </button>
+        }
       </div>
-      }
+
+      <div class="active-task-list">
+        @if (activeChatTasks().length > 0) {
+        @for (task of activeChatTasks(); track task.id) {
+        <div class="task-chat-item"
+             [class.active]="selectedTask?.id === task.id"
+             (click)="selectTask(task)">
+          <span class="status-dot" [attr.data-status]="task.status"></span>
+          <div class="task-info">
+            <span class="task-name">{{ task.title }}</span>
+            <span class="task-meta">{{ getStatusLabel(task.status) }}</span>
+          </div>
+          <button type="button" class="btn-remove-chat" (click)="removeTaskFromRecent($event, task.id)" title="Đóng hội thoại">
+            <mat-icon>close</mat-icon>
+          </button>
+        </div>
+        }
+        } @else {
+        <div class="empty-recent-card" (click)="showTaskPickerModal.set(true)">
+          <div class="empty-icon-circle">
+            <mat-icon>add_task</mat-icon>
+          </div>
+          <span class="empty-title">Chưa ghim task nào</span>
+          <span class="empty-desc">Nhấp để mở danh sách và thảo luận chi tiết</span>
+          <span class="shortcut-tag">Ctrl + K</span>
+        </div>
+        }
+      </div>
     </div>
   </aside>
 
   <!-- KHUNG CHAT CHÍNH -->
   <main class="gemini-main">
-    @if (selectedTask) {
-    <!-- HEADER KHUNG CHAT -->
     <header class="gemini-header">
       <div class="header-left">
         @if (!isSidebarOpen()) {
-        <button type="button" class="btn-open-sidebar" (click)="toggleSidebar()" title="Mở danh sách công việc">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <button type="button" class="btn-open-sidebar" (click)="toggleSidebar()" title="Mở Sidebar">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <rect x="3" y="3" width="18" height="18" rx="3" ry="3"></rect>
             <line x1="9" y1="3" x2="9" y2="21"></line>
             <polyline points="13 9 16 12 13 15"></polyline>
@@ -83,125 +112,140 @@
         </button>
         }
 
-        <div class="task-title-wrap">
-          <div class="task-main-title">
-            <h3>{{ selectedTask.title }}</h3>
-            <span class="badge-gemini-status" [attr.data-status]="selectedTask.status">
+        <div class="task-header-info">
+          <div class="task-main-row">
+            <h3>{{ selectedTask ? selectedTask.title : 'AI Global Assistant' }}</h3>
+            @if (selectedTask) {
+            <span class="badge-status" [attr.data-status]="selectedTask.status">
               {{ getStatusLabel(selectedTask.status) }}
             </span>
+            } @else {
+            <span class="badge-status dev-mode">Workspace</span>
+            }
           </div>
-          <span class="task-id-tag">Mã task: {{ selectedTask.id }}</span>
+          @if (selectedTask) {
+          <div class="task-code-breadcrumb">
+            <span>ID: <code>{{ selectedTask.id }}</code></span>
+            <button type="button" class="btn-copy-id" (click)="copyTaskId()" title="Copy Task ID">
+              <mat-icon>{{ copiedTaskId() ? 'check' : 'content_copy' }}</mat-icon>
+              <span>{{ copiedTaskId() ? 'Đã chép' : 'Copy' }}</span>
+            </button>
+          </div>
+          }
         </div>
       </div>
 
-      <button type="button" class="btn-summarize-gemini" (click)="summarizeTask()">
-        <span class="gemini-gradient-text">⚡ Tóm tắt bằng AI</span>
-      </button>
+      <!-- NÚT TÓM TẮT TASK TẠI GÓC PHẢI HEADER -->
+      <div class="header-actions">
+        @if (selectedTask) {
+        <button type="button" class="btn-summarize-special" (click)="summarizeTask()" title="Tóm tắt nhanh tiến độ & rủi ro">
+          <span class="sparkle-icon">⚡</span>
+          <span>Tóm tắt Task</span>
+        </button>
+        }
+      </div>
     </header>
 
-    <!-- KHU VỰC TIN NHẮN -->
-    <div class="gemini-chat-area" #chatContainer (click)="onMarkdownClick($event)">
-      <!-- QUICK PROMPTS CHIPS -->
-      <div class="gemini-quick-prompts">
-        <span class="quick-label">Gợi ý câu hỏi:</span>
-        <div class="chips-scroll">
-          <button type="button" class="gemini-chip" (click)="sendQuickPrompt('Hôm nay phòng IT có bao nhiêu việc trễ hạn?')">
-            ⚡ Phòng IT có bao nhiêu việc trễ hạn?
-          </button>
-          <button type="button" class="gemini-chip" (click)="sendQuickPrompt('Tôi đang có bao nhiêu việc cần duyệt?')">
-            📋 Tôi có bao nhiêu việc cần duyệt?
-          </button>
-          <button type="button" class="gemini-chip" (click)="sendQuickPrompt('Liệt kê các công việc sắp đến hạn trong tuần này của tôi')">
-            ⏳ Việc sắp đến hạn tuần này của tôi
-          </button>
+    <!-- THANH QUICK PROMPT ACTIONS -->
+    @if (selectedTask) {
+    <div class="task-quick-actions-bar">
+      <div class="actions-inner-wrap">
+        <button type="button" class="quick-pill" (click)="sendQuickPrompt('deadline')">
+          <mat-icon>event</mat-icon> Check Deadline
+        </button>
+        <button type="button" class="quick-pill" (click)="sendQuickPrompt('assignee')">
+          <mat-icon>person</mat-icon> Người phụ trách
+        </button>
+        <button type="button" class="quick-pill" (click)="sendQuickPrompt('blockers')">
+          <mat-icon>bug_report</mat-icon> Vướng mắc kỹ thuật
+        </button>
+      </div>
+    </div>
+    }
+
+    <div class="gemini-chat-area" #chatContainer appAutoScroll (click)="onMarkdownClick($event)">
+      <div class="chat-inner-centered">
+        @if (messages().length > 0) {
+        @for (msg of messages(); let i = $index; track i) {
+        <div class="date-divider" *ngIf="isNewDate(i, msg, messages())">
+          <span>{{ msg.timestamp | date:'dd/MM/yyyy' }}</span>
         </div>
-      </div>
 
-      @if (messages().length > 0) {
-      @for (msg of messages(); let i = $index; track i) {
-      <div class="date-divider" *ngIf="isNewDate(i, msg, messages())">
-        <span>{{ msg.timestamp | date:'dd/MM/yyyy' }}</span>
-      </div>
+        <div class="gemini-message-row" [class.user-row]="msg.sender === 'user'">
+          <div class="gemini-avatar" *ngIf="msg.sender === 'bot'">
+            <mat-icon>smart_toy</mat-icon>
+          </div>
 
-      <div class="gemini-message-row" [class.user-row]="msg.sender === 'user'">
-        @if (msg.sender === 'bot') {
-        <div class="gemini-avatar">
-          <!-- Icon Avatar AI -->
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect x="4" y="6" width="16" height="13" rx="3.5" fill="#ffffff" fill-opacity="0.95" />
-            <circle cx="8.5" cy="11.5" r="1.5" fill="#4338ca" />
-            <circle cx="15.5" cy="11.5" r="1.5" fill="#4338ca" />
-            <path d="M10 15C10.6 15.6 11.2 15.8 12 15.8C12.8 15.8 13.4 15.6 14 15" stroke="#4338ca" stroke-width="1.4" stroke-linecap="round" />
-            <path d="M12 3V6" stroke="#ffffff" stroke-width="2" stroke-linecap="round" />
-          </svg>
+          <div class="gemini-bubble-container">
+            <div class="gemini-bubble">
+              @if (msg.sender === 'bot') {
+              <div class="markdown-body">
+                <app-markdown [data]="msg.processedText || msg.text"></app-markdown>
+              </div>
+              } @else {
+              <p class="user-text">{{ msg.text }}</p>
+              }
+            </div>
+            <span class="message-timestamp">{{ msg.timestamp | date:'HH:mm' }}</span>
+          </div>
+        </div>
+        }
+        } @else {
+        <div class="gemini-welcome-container">
+          <div class="welcome-card">
+            <div class="welcome-bot-icon">
+              <mat-icon>{{ selectedTask ? 'assignment' : 'terminal' }}</mat-icon>
+            </div>
+            <h4>{{ selectedTask ? selectedTask.title : 'AI Developer Assistant' }}</h4>
+            <p>{{ selectedTask ? 'Chưa có lịch sử trao đổi cho task này. Bắt đầu ngay với các tác vụ nhanh bên dưới:' : 'Hỗ trợ tra cứu tiến độ, phân tích backlog và báo cáo hiệu suất phòng ban theo thời gian thực.' }}</p>
+
+            <div class="welcome-chips-grid">
+              @if (selectedTask) {
+              <button type="button" class="welcome-chip" (click)="summarizeTask()">
+                <mat-icon>bolt</mat-icon>
+                <span>Tóm tắt tình trạng task</span>
+              </button>
+              <button type="button" class="welcome-chip" (click)="sendQuickPrompt('deadline')">
+                <mat-icon>event</mat-icon>
+                <span>Kiểm tra deadline & Priority</span>
+              </button>
+              } @else {
+              <button type="button" class="welcome-chip" (click)="sendQuickPrompt('Hôm nay phòng DEV có bao nhiêu việc trễ hạn?')">
+                <mat-icon>alarm</mat-icon>
+                <span>Check task trễ hạn phòng DEV</span>
+              </button>
+              <button type="button" class="welcome-chip" (click)="sendQuickPrompt('Tôi đang có bao nhiêu việc cần duyệt?')">
+                <mat-icon>rule</mat-icon>
+                <span>Task đang chờ duyệt</span>
+              </button>
+              }
+            </div>
+          </div>
         </div>
         }
 
-        <div class="gemini-bubble-container">
-          <div class="gemini-bubble">
-            @if (msg.sender === 'bot') {
-            <div class="markdown-body">
-              <app-markdown [data]="msg.processedText || msg.text"></app-markdown>
+        @if (isBotTyping()) {
+        <div class="gemini-message-row typing-row">
+          <div class="gemini-avatar typing-pulse">
+            <mat-icon>smart_toy</mat-icon>
+          </div>
+          <div class="gemini-bubble typing-bubble">
+            <div class="typing-dots">
+              <span></span><span></span><span></span>
             </div>
-            } @else {
-            <p class="user-text">{{ msg.text }}</p>
-            }
+            <span class="typing-text">AI đang truy xuất dữ liệu MCP...</span>
+            <button type="button" class="btn-cancel-req" (click)="cancelCurrentAiRequest()">Dừng</button>
           </div>
-          <span class="message-timestamp">{{ msg.timestamp | date:'HH:mm' }}</span>
         </div>
+        }
       </div>
-      }
-      } @else {
-      <div class="gemini-welcome">
-        <div class="welcome-bot-icon">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect x="3" y="6" width="18" height="14" rx="4" fill="url(#welcomeBotGrad)" />
-            <path d="M12 2V6" stroke="url(#welcomeBotGrad)" stroke-width="2" stroke-linecap="round" />
-            <circle cx="12" cy="2" r="1.6" fill="#6366f1" />
-            <circle cx="8.5" cy="12.5" r="2" fill="#ffffff" />
-            <circle cx="15.5" cy="12.5" r="2" fill="#ffffff" />
-            <path d="M9.5 16.2C10.3 17 11.1 17.2 12 17.2C12.9 17.2 13.7 17 14.5 16.2" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" />
-            <defs>
-              <linearGradient id="welcomeBotGrad" x1="3" y1="2" x2="21" y2="20" gradientUnits="userSpaceOnUse">
-                <stop stop-color="#6366f1" />
-                <stop offset="1" stop-color="#4338ca" />
-              </linearGradient>
-            </defs>
-          </svg>
-        </div>
-        <h4>Xin chào! Tôi là Trợ lý AI MCP</h4>
-        <p>Tôi có thể giúp bạn kiểm tra KPI, tóm tắt diễn biến task và tra cứu tiến độ công việc theo thời gian thực.</p>
-      </div>
-      }
-
-      <!-- BOT TYPING INDICATOR -->
-      @if (isBotTyping()) {
-      <div class="gemini-message-row typing-row">
-        <div class="gemini-avatar typing-pulse">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect x="4" y="6" width="16" height="13" rx="3.5" fill="#ffffff" fill-opacity="0.95" />
-            <circle cx="8.5" cy="11.5" r="1.5" fill="#4338ca" />
-            <circle cx="15.5" cy="11.5" r="1.5" fill="#4338ca" />
-            <path d="M12 3V6" stroke="#ffffff" stroke-width="2" stroke-linecap="round" />
-          </svg>
-        </div>
-        <div class="gemini-bubble typing-bubble">
-          <div class="typing-dots">
-            <span></span><span></span><span></span>
-          </div>
-          <span class="typing-text">Trợ lý AI đang phân tích dữ liệu...</span>
-          <button type="button" class="btn-cancel-req" (click)="cancelCurrentAiRequest()">Dừng</button>
-        </div>
-      </div>
-      }
     </div>
 
-    <!-- THANH SOẠN THẢO PROMPT NỔI -->
     <footer class="gemini-input-container">
       <div class="floating-prompt-box">
         <input type="text"
                [(ngModel)]="newMessage"
-               placeholder="Hỏi trợ lý AI về công việc, tiến độ hoặc tóm tắt..."
+               [placeholder]="selectedTask ? 'Hỏi AI về ' + selectedTask.title + '...' : 'Nhập câu hỏi hoặc lệnh tra cứu task...'"
                (keyup.enter)="sendMessage()"
                [disabled]="isBotTyping()" />
         <button type="button"
@@ -212,57 +256,213 @@
         </button>
       </div>
     </footer>
-    } @else {
-    <div class="no-task-selected">
-      @if (!isSidebarOpen()) {
-      <button type="button" class="btn-open-sidebar floating-corner-btn" (click)="toggleSidebar()" title="Mở danh sách công việc">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3" y="3" width="18" height="18" rx="3" ry="3"></rect>
-          <line x1="9" y1="3" x2="9" y2="21"></line>
-          <polyline points="13 9 16 12 13 15"></polyline>
-        </svg>
-      </button>
-      }
-      <div class="empty-icon-wrap">
-        <mat-icon>bubble_chart</mat-icon>
-      </div>
-      <h3>Chọn một công việc để bắt đầu</h3>
-      <p>Chọn bất kỳ task nào từ danh sách bên trái để xem ngữ cảnh và hội thoại cùng AI.</p>
-    </div>
-    }
   </main>
 </div>
 
-<!-- MODAL KPI -->
+<!-- MODAL CHỌN TASK THÔNG MINH -->
+@if (showTaskPickerModal()) {
+<div class="gemini-modal-backdrop" (click)="showTaskPickerModal.set(false)">
+  <div class="gemini-modal-card task-picker-card" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title-wrap">
+        <div class="modal-header-icon">
+          <mat-icon>checklist</mat-icon>
+        </div>
+        <div>
+          <h3>Chọn Task Để Trao Đổi</h3>
+          <p class="modal-subtitle">Tìm kiếm và mở không gian làm việc với AI cho từng task</p>
+        </div>
+      </div>
+      <button class="btn-close-modal" (click)="showTaskPickerModal.set(false)">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+
+    <div class="picker-search-bar">
+      <mat-icon>search</mat-icon>
+      <input type="text"
+             [ngModel]="taskSearchKeyword()"
+             (ngModelChange)="taskSearchKeyword.set($event)"
+             placeholder="Tìm theo tên task hoặc mã ID..." />
+    </div>
+
+    <div class="picker-task-list">
+      @if (filteredTasks.length > 0) {
+      @for (task of filteredTasks; track task.id) {
+      <div class="picker-task-row" (click)="selectTask(task)">
+        <div class="row-left">
+          <span class="status-dot" [attr.data-status]="task.status"></span>
+          <div class="task-info-col">
+            <div class="task-title-text">{{ task.title }}</div>
+            <span class="task-id-sub">{{ task.id }}</span>
+          </div>
+        </div>
+        <span class="badge-status" [attr.data-status]="task.status">
+          {{ getStatusLabel(task.status) }}
+        </span>
+      </div>
+      }
+      } @else {
+      <div class="picker-empty">Không tìm thấy task phù hợp.</div>
+      }
+    </div>
+  </div>
+</div>
+}
+
+<!-- MODAL DAILY BRIEFING -->
+@if (showBriefingModal()) {
+<div class="gemini-modal-backdrop" (click)="showBriefingModal.set(false)">
+  <div class="gemini-modal-card briefing-card" (click)="$event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title-wrap">
+        <div class="modal-header-icon briefing-sun-icon">
+          <mat-icon>wb_sunny</mat-icon>
+        </div>
+        <div>
+          <h3>Daily Briefing AI</h3>
+          <p class="modal-subtitle">Tổng hợp số liệu thực tế từ hệ thống & khuyến nghị của PM AI</p>
+        </div>
+      </div>
+      <button class="btn-close-modal" (click)="showBriefingModal.set(false)">
+        <mat-icon>close</mat-icon>
+      </button>
+    </div>
+
+    <div class="dept-segment-control">
+      @for (dept of departments(); track dept.id) {
+      <button type="button"
+              class="segment-btn"
+              [class.active]="selectedBriefingDeptId() === dept.id"
+              (click)="selectBriefingDepartment(dept.id)">
+        {{ dept.name }}
+      </button>
+      }
+    </div>
+
+    @if (!selectedBriefingDeptId()) {
+    <div class="briefing-prompt-selection">
+      <div class="prompt-icon-wrap">
+        <mat-icon>touch_app</mat-icon>
+      </div>
+      <h4>Vui lòng chọn phòng ban</h4>
+      <p>Nhấp vào một trong các phòng ban ở trên để PM AI tổng hợp dữ liệu và tạo báo cáo đầu ngày.</p>
+    </div>
+    }
+
+    @if (selectedBriefingDeptId() && isGeneratingBriefing()) {
+    <div class="briefing-loading">
+      <div class="loading-bot-pulse">
+        <mat-icon>auto_awesome</mat-icon>
+      </div>
+      <h4>PM AI đang phân tích dữ liệu...</h4>
+      <p>Đang truy vấn các công việc trễ hạn qua RPC và tổng hợp khuyến nghị.</p>
+    </div>
+    }
+
+    @if (selectedBriefingDeptId() && !isGeneratingBriefing() && briefingData()) {
+    <div class="briefing-body">
+      <div class="briefing-stats-row">
+        <div class="b-stat">
+          <span class="b-val">{{ briefingData()?.totalTasks ?? 0 }}</span>
+          <span class="b-lbl">Việc cần theo dõi</span>
+        </div>
+        <div class="b-stat danger">
+          <span class="b-val">{{ briefingData()?.overdueTasksCount ?? 0 }}</span>
+          <span class="b-lbl">Việc trễ hạn</span>
+        </div>
+        <div class="b-stat warning">
+          <span class="b-val">{{ briefingData()?.inProgressCount ?? 0 }}</span>
+          <span class="b-lbl">Đang thực hiện</span>
+        </div>
+      </div>
+
+      <div class="briefing-text-card">
+        <div class="markdown-body">
+          <app-markdown [data]="briefingData()?.summaryText || ''"></app-markdown>
+        </div>
+      </div>
+
+      @if (briefingData()?.topOverdueTitles?.length) {
+      <div class="briefing-overdue-list">
+        <span class="overdue-tag-label">Trọng tâm cần xử lý:</span>
+        <div class="overdue-tags">
+          @for (t of briefingData()?.topOverdueTitles; track t) {
+          <span class="tag-item">🚨 {{ t }}</span>
+          }
+        </div>
+      </div>
+      }
+    </div>
+    }
+  </div>
+</div>
+}
+
+<!-- MODAL KPI PHÒNG BAN -->
 @if (showKpiModal()) {
 <div class="gemini-modal-backdrop" (click)="showKpiModal.set(false)">
   <div class="gemini-modal-card" (click)="$event.stopPropagation()">
     <div class="modal-header">
       <div class="modal-title-wrap">
-        <span class="sparkle-icon">📊</span>
-        <h3>Hiệu suất Phòng {{ kpiData()?.departmentName || 'Chuyên Môn' }}</h3>
+        <div class="modal-header-icon">
+          <mat-icon>query_stats</mat-icon>
+        </div>
+        <div>
+          <h3>Chỉ số KPI Phòng Ban</h3>
+          <p class="modal-subtitle">Đo lường tiến độ và hiệu suất xử lý công việc</p>
+        </div>
       </div>
       <button class="btn-close-modal" (click)="showKpiModal.set(false)">
         <mat-icon>close</mat-icon>
       </button>
     </div>
 
+    <div class="dept-segment-control">
+      @for (dept of departments(); track dept.id) {
+      <button type="button"
+              class="segment-btn"
+              [class.active]="selectedKpiDeptId === dept.id"
+              (click)="loadDepartmentKpi(dept.id)">
+        {{ dept.name }}
+      </button>
+      }
+    </div>
+
     <div class="kpi-metric-grid">
       <div class="metric-card">
-        <span class="metric-title">Tổng công việc</span>
+        <div class="metric-card-top">
+          <span class="metric-title">Tổng công việc</span>
+          <mat-icon class="metric-watermark-icon">assignment</mat-icon>
+        </div>
         <span class="metric-num">{{ kpiData()?.totalTasks ?? 0 }}</span>
       </div>
+
       <div class="metric-card metric-green">
-        <span class="metric-title">Đã hoàn thành</span>
+        <div class="metric-card-top">
+          <span class="metric-title">Đã hoàn thành</span>
+          <mat-icon class="metric-watermark-icon">check_circle</mat-icon>
+        </div>
         <span class="metric-num">{{ kpiData()?.completedTasks ?? 0 }}</span>
       </div>
+
       <div class="metric-card metric-amber">
-        <span class="metric-title">Đang thực hiện</span>
+        <div class="metric-card-top">
+          <span class="metric-title">Đang thực hiện</span>
+          <mat-icon class="metric-watermark-icon">pending_actions</mat-icon>
+        </div>
         <span class="metric-num">{{ kpiData()?.inProgressTasks ?? 0 }}</span>
       </div>
+
       <div class="metric-card metric-indigo">
-        <span class="metric-title">Tỷ lệ hoàn thành</span>
+        <div class="metric-card-top">
+          <span class="metric-title">Tỷ lệ hoàn thành</span>
+          <mat-icon class="metric-watermark-icon">trending_up</mat-icon>
+        </div>
         <span class="metric-num">{{ kpiData()?.completionRate ?? 0 }}%</span>
+        <div class="kpi-progress-track">
+          <div class="kpi-progress-bar" [style.width.%]="kpiData()?.completionRate ?? 0"></div>
+        </div>
       </div>
     </div>
   </div>

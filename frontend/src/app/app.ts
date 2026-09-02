@@ -7,6 +7,7 @@ import { TaskChatComponent } from './task-chat/task-chat.component';
 import { AuthService } from './auth.service';
 import { ToastComponent } from './toast/toast.component';
 import { DailyBriefingComponent } from './daily-briefing/daily-briefing.component';
+import { UserMenuComponent } from './components/user-menu/user-menu.component';
 import { environment } from '../environments/environment';
 
 export interface NotifItem {
@@ -19,7 +20,14 @@ export interface NotifItem {
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, TaskChatComponent, RouterModule, ToastComponent, DailyBriefingComponent],
+  imports: [
+    CommonModule,
+    TaskChatComponent,
+    RouterModule,
+    ToastComponent,
+    DailyBriefingComponent,
+    UserMenuComponent
+  ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })
