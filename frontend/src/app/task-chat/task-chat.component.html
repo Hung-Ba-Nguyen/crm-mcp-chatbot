@@ -1,5 +1,5 @@
 <div class="gemini-layout" [class.sidebar-collapsed]="!isSidebarOpen()">
-  <!-- SIDEBAR -->
+  <!-- SIDEBAR BÊN TRÁI -->
   <aside class="gemini-sidebar" [class.collapsed]="!isSidebarOpen()">
     <div class="sidebar-top">
       <div class="brand-header-row">
@@ -22,10 +22,10 @@
           </div>
           <div class="brand-text">
             <h2>TaskFlow AI</h2>
-            <p>Dev Intelligence Hub</p>
+            <p>Trợ lý Điều phối MCP</p>
           </div>
         </div>
-        <button type="button" class="btn-toggle-sidebar" (click)="toggleSidebar()" title="Thu gọn Sidebar">
+        <button type="button" class="btn-toggle-sidebar" (click)="toggleSidebar()" title="Thu gọn thanh bên">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <rect x="3" y="3" width="18" height="18" rx="3" ry="3"></rect>
             <line x1="9" y1="3" x2="9" y2="21"></line>
@@ -39,29 +39,29 @@
                 class="hub-btn"
                 [class.active]="selectedTask === null"
                 (click)="selectGlobalAssistant()">
-          <mat-icon>terminal</mat-icon>
-          <span>Trợ lý Toàn Cục</span>
+          <mat-icon>dashboard_customize</mat-icon>
+          <span>Hỏi đáp Tổng quan</span>
         </button>
 
         <div class="hub-row">
-          <button type="button" class="hub-btn-mini" (click)="openDailyBriefing()" title="Báo cáo đầu ngày">
+          <button type="button" class="hub-btn-mini" (click)="openDailyBriefing()" title="Báo cáo công việc đầu ngày">
             <mat-icon>wb_sunny</mat-icon>
-            <span>Briefing</span>
+            <span>Báo cáo sáng</span>
           </button>
-          <button type="button" class="hub-btn-mini" (click)="openKpiModal()" title="Chỉ số KPI phòng">
+          <button type="button" class="hub-btn-mini" (click)="openKpiModal()" title="Thống kê hiệu suất phòng ban">
             <mat-icon>monitoring</mat-icon>
-            <span>KPI</span>
+            <span>Chỉ số KPI</span>
           </button>
         </div>
       </div>
     </div>
 
-    <!-- DANH SÁCH TASK -->
+    <!-- DANH SÁCH TASK GHIM THEO DÕI -->
     <div class="sidebar-task-section">
       <div class="task-section-header">
-        <span class="section-label">DANH SÁCH TASK ({{ activeChatTasks().length }})</span>
+        <span class="section-label">TASK ĐANG THEO DÕI ({{ activeChatTasks().length }})</span>
         @if (activeChatTasks().length > 0) {
-        <button type="button" class="btn-open-picker" (click)="showTaskPickerModal.set(true)" title="Thêm Task thảo luận (Ctrl + K)">
+        <button type="button" class="btn-open-picker" (click)="showTaskPickerModal.set(true)" title="Ghim thêm Task (Ctrl + K)">
           <mat-icon>add</mat-icon>
           <span>Thêm</span>
         </button>
@@ -79,7 +79,7 @@
             <span class="task-name">{{ task.title }}</span>
             <span class="task-meta">{{ getStatusLabel(task.status) }}</span>
           </div>
-          <button type="button" class="btn-remove-chat" (click)="removeTaskFromRecent($event, task.id)" title="Đóng hội thoại">
+          <button type="button" class="btn-remove-chat" (click)="removeTaskFromRecent($event, task.id)" title="Bỏ theo dõi">
             <mat-icon>close</mat-icon>
           </button>
         </div>
@@ -90,7 +90,7 @@
             <mat-icon>add_task</mat-icon>
           </div>
           <span class="empty-title">Chưa ghim task nào</span>
-          <span class="empty-desc">Nhấp để mở danh sách và thảo luận chi tiết</span>
+          <span class="empty-desc">Nhấp để chọn task từ Kanban và bắt đầu trao đổi</span>
           <span class="shortcut-tag">Ctrl + K</span>
         </div>
         }
@@ -98,12 +98,12 @@
     </div>
   </aside>
 
-  <!-- KHUNG CHAT CHÍNH -->
+  <!-- KHUNG TRÒ CHUYỆN CHÍNH -->
   <main class="gemini-main">
     <header class="gemini-header">
       <div class="header-left">
         @if (!isSidebarOpen()) {
-        <button type="button" class="btn-open-sidebar" (click)="toggleSidebar()" title="Mở Sidebar">
+        <button type="button" class="btn-open-sidebar" (click)="toggleSidebar()" title="Mở thanh bên">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <rect x="3" y="3" width="18" height="18" rx="3" ry="3"></rect>
             <line x1="9" y1="3" x2="9" y2="21"></line>
@@ -114,31 +114,29 @@
 
         <div class="task-header-info">
           <div class="task-main-row">
-            <h3>{{ selectedTask ? selectedTask.title : 'AI Global Assistant' }}</h3>
+            <h3>{{ selectedTask ? selectedTask.title : 'Tổng quan Dự án' }}</h3>
             @if (selectedTask) {
             <span class="badge-status" [attr.data-status]="selectedTask.status">
               {{ getStatusLabel(selectedTask.status) }}
             </span>
-            } @else {
-            <span class="badge-status dev-mode">Workspace</span>
             }
           </div>
           @if (selectedTask) {
           <div class="task-code-breadcrumb">
-            <span>ID: <code>{{ selectedTask.id }}</code></span>
-            <button type="button" class="btn-copy-id" (click)="copyTaskId()" title="Copy Task ID">
+            <span>Mã Task: <code>{{ selectedTask.id }}</code></span>
+            <button type="button" class="btn-copy-id" (click)="copyTaskId()" title="Sao chép mã Task">
               <mat-icon>{{ copiedTaskId() ? 'check' : 'content_copy' }}</mat-icon>
-              <span>{{ copiedTaskId() ? 'Đã chép' : 'Copy' }}</span>
+              <span>{{ copiedTaskId() ? 'Đã chép' : 'Sao chép' }}</span>
             </button>
           </div>
           }
         </div>
       </div>
 
-      <!-- NÚT TÓM TẮT TASK TẠI GÓC PHẢI HEADER -->
+      <!-- NÚT TÓM TẮT TASK GÓC PHẢI HEADER -->
       <div class="header-actions">
         @if (selectedTask) {
-        <button type="button" class="btn-summarize-special" (click)="summarizeTask()" title="Tóm tắt nhanh tiến độ & rủi ro">
+        <button type="button" class="btn-summarize-special" (click)="summarizeTask()" title="Tóm tắt tiến độ và vướng mắc">
           <span class="sparkle-icon">⚡</span>
           <span>Tóm tắt Task</span>
         </button>
@@ -146,23 +144,24 @@
       </div>
     </header>
 
-    <!-- THANH QUICK PROMPT ACTIONS -->
+    <!-- THANH TÁC VỤ NHANH KHI ĐANG XEM TASK -->
     @if (selectedTask) {
     <div class="task-quick-actions-bar">
       <div class="actions-inner-wrap">
         <button type="button" class="quick-pill" (click)="sendQuickPrompt('deadline')">
-          <mat-icon>event</mat-icon> Check Deadline
+          <mat-icon>event</mat-icon> Kiểm tra hạn chót & Ưu tiên
         </button>
         <button type="button" class="quick-pill" (click)="sendQuickPrompt('assignee')">
-          <mat-icon>person</mat-icon> Người phụ trách
+          <mat-icon>person</mat-icon> Người phụ trách & Giám sát
         </button>
         <button type="button" class="quick-pill" (click)="sendQuickPrompt('blockers')">
-          <mat-icon>bug_report</mat-icon> Vướng mắc kỹ thuật
+          <mat-icon>bug_report</mat-icon> Điểm nghẽn kỹ thuật (Blocker)
         </button>
       </div>
     </div>
     }
 
+    <!-- VÙNG HIỂN THỊ HỘI THOẠI -->
     <div class="gemini-chat-area" #chatContainer appAutoScroll (click)="onMarkdownClick($event)">
       <div class="chat-inner-centered">
         @if (messages().length > 0) {
@@ -191,32 +190,37 @@
         </div>
         }
         } @else {
+        <!-- CARD GỢI Ý CHÀO ĐÓN BAN ĐẦU -->
         <div class="gemini-welcome-container">
           <div class="welcome-card">
             <div class="welcome-bot-icon">
               <mat-icon>{{ selectedTask ? 'assignment' : 'terminal' }}</mat-icon>
             </div>
-            <h4>{{ selectedTask ? selectedTask.title : 'AI Developer Assistant' }}</h4>
-            <p>{{ selectedTask ? 'Chưa có lịch sử trao đổi cho task này. Bắt đầu ngay với các tác vụ nhanh bên dưới:' : 'Hỗ trợ tra cứu tiến độ, phân tích backlog và báo cáo hiệu suất phòng ban theo thời gian thực.' }}</p>
+            <h4>{{ selectedTask ? selectedTask.title : 'Trợ lý Dự án TaskFlow' }}</h4>
+            <p>{{ selectedTask ? 'Chưa có trao đổi nào trong task này. Bắt đầu nhanh bằng các gợi ý dưới đây:' : 'Hỗ trợ tra cứu tiến độ sprint, thống kê công việc và báo cáo hiệu suất theo thời gian thực.' }}</p>
 
             <div class="welcome-chips-grid">
               @if (selectedTask) {
               <button type="button" class="welcome-chip" (click)="summarizeTask()">
                 <mat-icon>bolt</mat-icon>
-                <span>Tóm tắt tình trạng task</span>
+                <span>Tóm tắt tiến độ & vướng mắc</span>
               </button>
               <button type="button" class="welcome-chip" (click)="sendQuickPrompt('deadline')">
                 <mat-icon>event</mat-icon>
-                <span>Kiểm tra deadline & Priority</span>
+                <span>Kiểm tra hạn hoàn thành & Mức ưu tiên</span>
               </button>
               } @else {
               <button type="button" class="welcome-chip" (click)="sendQuickPrompt('Hôm nay phòng DEV có bao nhiêu việc trễ hạn?')">
                 <mat-icon>alarm</mat-icon>
-                <span>Check task trễ hạn phòng DEV</span>
+                <span>Hôm nay phòng DEV có bao nhiêu việc trễ hạn?</span>
               </button>
               <button type="button" class="welcome-chip" (click)="sendQuickPrompt('Tôi đang có bao nhiêu việc cần duyệt?')">
                 <mat-icon>rule</mat-icon>
-                <span>Task đang chờ duyệt</span>
+                <span>Tôi đang có bao nhiêu việc cần duyệt?</span>
+              </button>
+              <button type="button" class="welcome-chip" (click)="sendQuickPrompt('Liệt kê các việc sắp đến hạn trong tuần này của tôi')">
+                <mat-icon>calendar_today</mat-icon>
+                <span>Liệt kê các việc sắp đến hạn trong tuần này của tôi</span>
               </button>
               }
             </div>
@@ -233,7 +237,7 @@
             <div class="typing-dots">
               <span></span><span></span><span></span>
             </div>
-            <span class="typing-text">AI đang truy xuất dữ liệu MCP...</span>
+            <span class="typing-text">AI đang truy xuất dữ liệu hệ thống...</span>
             <button type="button" class="btn-cancel-req" (click)="cancelCurrentAiRequest()">Dừng</button>
           </div>
         </div>
@@ -241,17 +245,19 @@
       </div>
     </div>
 
+    <!-- Ô NHẬP LỆNH CHAT BÊN DƯỚI -->
     <footer class="gemini-input-container">
       <div class="floating-prompt-box">
         <input type="text"
                [(ngModel)]="newMessage"
-               [placeholder]="selectedTask ? 'Hỏi AI về ' + selectedTask.title + '...' : 'Nhập câu hỏi hoặc lệnh tra cứu task...'"
+               [placeholder]="selectedTask ? 'Hỏi AI về công việc ' + selectedTask.title + '...' : 'Nhập câu hỏi (ví dụ: Task nào đang trễ hạn, việc cần duyệt)...'"
                (keyup.enter)="sendMessage()"
                [disabled]="isBotTyping()" />
         <button type="button"
                 class="btn-send-gemini"
                 (click)="sendMessage()"
-                [disabled]="!newMessage.trim() || isBotTyping()">
+                [disabled]="!newMessage.trim() || isBotTyping()"
+                title="Gửi câu hỏi">
           <mat-icon>arrow_upward</mat-icon>
         </button>
       </div>
@@ -259,7 +265,7 @@
   </main>
 </div>
 
-<!-- MODAL CHỌN TASK THÔNG MINH -->
+<!-- MODAL CHỌN TASK THẢO LUẬN -->
 @if (showTaskPickerModal()) {
 <div class="gemini-modal-backdrop" (click)="showTaskPickerModal.set(false)">
   <div class="gemini-modal-card task-picker-card" (click)="$event.stopPropagation()">
@@ -269,8 +275,8 @@
           <mat-icon>checklist</mat-icon>
         </div>
         <div>
-          <h3>Chọn Task Để Trao Đổi</h3>
-          <p class="modal-subtitle">Tìm kiếm và mở không gian làm việc với AI cho từng task</p>
+          <h3>Chọn Task Thảo Luận</h3>
+          <p class="modal-subtitle">Mở phiên làm việc riêng với AI cho từng công việc</p>
         </div>
       </div>
       <button class="btn-close-modal" (click)="showTaskPickerModal.set(false)">
@@ -283,7 +289,7 @@
       <input type="text"
              [ngModel]="taskSearchKeyword()"
              (ngModelChange)="taskSearchKeyword.set($event)"
-             placeholder="Tìm theo tên task hoặc mã ID..." />
+             placeholder="Tìm theo tên hoặc mã task..." />
     </div>
 
     <div class="picker-task-list">
@@ -303,14 +309,14 @@
       </div>
       }
       } @else {
-      <div class="picker-empty">Không tìm thấy task phù hợp.</div>
+      <div class="picker-empty">Không tìm thấy công việc phù hợp.</div>
       }
     </div>
   </div>
 </div>
 }
 
-<!-- MODAL DAILY BRIEFING -->
+<!-- MODAL BÁO CÁO ĐẦU NGÀY (DAILY BRIEFING) -->
 @if (showBriefingModal()) {
 <div class="gemini-modal-backdrop" (click)="showBriefingModal.set(false)">
   <div class="gemini-modal-card briefing-card" (click)="$event.stopPropagation()">
@@ -320,8 +326,8 @@
           <mat-icon>wb_sunny</mat-icon>
         </div>
         <div>
-          <h3>Daily Briefing AI</h3>
-          <p class="modal-subtitle">Tổng hợp số liệu thực tế từ hệ thống & khuyến nghị của PM AI</p>
+          <h3>Báo Cáo Đầu Ngày</h3>
+          <p class="modal-subtitle">Tổng hợp tình hình công việc và đề xuất trọng tâm trong ngày</p>
         </div>
       </div>
       <button class="btn-close-modal" (click)="showBriefingModal.set(false)">
@@ -345,8 +351,8 @@
       <div class="prompt-icon-wrap">
         <mat-icon>touch_app</mat-icon>
       </div>
-      <h4>Vui lòng chọn phòng ban</h4>
-      <p>Nhấp vào một trong các phòng ban ở trên để PM AI tổng hợp dữ liệu và tạo báo cáo đầu ngày.</p>
+      <h4>Chọn phòng ban cần xem</h4>
+      <p>Nhấp vào phòng ban phía trên để xem báo cáo tiến độ và công việc trễ hạn hôm nay.</p>
     </div>
     }
 
@@ -355,8 +361,8 @@
       <div class="loading-bot-pulse">
         <mat-icon>auto_awesome</mat-icon>
       </div>
-      <h4>PM AI đang phân tích dữ liệu...</h4>
-      <p>Đang truy vấn các công việc trễ hạn qua RPC và tổng hợp khuyến nghị.</p>
+      <h4>AI đang tổng hợp dữ liệu...</h4>
+      <p>Đang đối soát danh sách trễ hạn và trích xuất điểm nghẽn kỹ thuật.</p>
     </div>
     }
 
@@ -385,7 +391,7 @@
 
       @if (briefingData()?.topOverdueTitles?.length) {
       <div class="briefing-overdue-list">
-        <span class="overdue-tag-label">Trọng tâm cần xử lý:</span>
+        <span class="overdue-tag-label">Việc cần dứt điểm ngay:</span>
         <div class="overdue-tags">
           @for (t of briefingData()?.topOverdueTitles; track t) {
           <span class="tag-item">🚨 {{ t }}</span>
@@ -399,7 +405,7 @@
 </div>
 }
 
-<!-- MODAL KPI PHÒNG BAN -->
+<!-- MODAL CHỈ SỐ KPI PHÒNG BAN -->
 @if (showKpiModal()) {
 <div class="gemini-modal-backdrop" (click)="showKpiModal.set(false)">
   <div class="gemini-modal-card" (click)="$event.stopPropagation()">
@@ -409,8 +415,8 @@
           <mat-icon>query_stats</mat-icon>
         </div>
         <div>
-          <h3>Chỉ số KPI Phòng Ban</h3>
-          <p class="modal-subtitle">Đo lường tiến độ và hiệu suất xử lý công việc</p>
+          <h3>Chỉ Số KPI Phòng Ban</h3>
+          <p class="modal-subtitle">Thống kê khối lượng và tỷ lệ hoàn thành công việc</p>
         </div>
       </div>
       <button class="btn-close-modal" (click)="showKpiModal.set(false)">
