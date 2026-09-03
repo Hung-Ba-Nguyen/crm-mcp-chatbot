@@ -117,12 +117,14 @@ export class TaskChatComponent implements OnInit, OnDestroy {
   private chatCache = new Map<string, ChatMessage[]>();
   private readonly GLOBAL_CHAT_KEY = '__global_assistant__';
   private readonly KANBAN_CHAT_KEY = 'kanban_user_team_chat_store';
+  private readonly DEMO_STATUS_KEY = 'kanban_demo_task_statuses';
+  private readonly DAILY_BRIEFING_SENT_KEY = 'taskflow_daily_briefing_last_sent';
 
   constructor() {
     effect(() => {
       const alert = this.signalR.latestAlert();
       if (alert) {
-        const alertMsg = alert.message || alert.Message;
+        const alertMsg = (alert as any).message || (alert as any).Message;
         if (alertMsg) {
           console.log('[TaskChat] Realtime alert arrived:', alertMsg);
         }
@@ -144,7 +146,7 @@ export class TaskChatComponent implements OnInit, OnDestroy {
       const raw = localStorage.getItem(k) || sessionStorage.getItem(k);
       if (raw) {
         try {
-          const parsed = JSON.parse(raw);
+          const parsed: any = JSON.parse(raw);
           const uid = parsed.id || parsed.Id || parsed._id || parsed.userId || parsed.email || parsed.userName;
           if (uid) return String(uid).trim();
         } catch { }
@@ -156,7 +158,7 @@ export class TaskChatComponent implements OnInit, OnDestroy {
       const token = localStorage.getItem(tk) || sessionStorage.getItem(tk);
       if (token && token.includes('.')) {
         try {
-          const payload = JSON.parse(atob(token.split('.')[1]));
+          const payload: any = JSON.parse(atob(token.split('.')[1]));
           const uid = payload.sub || payload.nameid || payload.email || payload.userId || payload.id;
           if (uid) return String(uid).trim();
         } catch { }
@@ -242,9 +244,9 @@ export class TaskChatComponent implements OnInit, OnDestroy {
     this.chatCache.clear();
     if (saved) {
       try {
-        const parsed = JSON.parse(saved) as Record<string, ChatMessage[]>;
+        const parsed: any = JSON.parse(saved);
         Object.keys(parsed).forEach(taskId => {
-          const msgs = parsed[taskId].map(m => ({ ...m, timestamp: m.timestamp ? new Date(m.timestamp) : new Date() }));
+          const msgs = parsed[taskId].map((m: any) => ({ ...m, timestamp: m.timestamp ? new Date(m.timestamp) : new Date() }));
           this.chatCache.set(taskId, msgs);
         });
       } catch { }
@@ -282,7 +284,7 @@ export class TaskChatComponent implements OnInit, OnDestroy {
   private loadUsersAndDepartments(): void {
     const usersUrl = `${this.baseUrl.replace(/\/+$/, '')}/Users`;
     this.http.get<any>(usersUrl).subscribe({
-      next: (res) => {
+      next: (res: any) => {
         const list = Array.isArray(res) ? res : (res?.data || []);
         list.forEach((u: any) => {
           const uid = String(u.id || u.Id || u._id || '').trim();
@@ -297,7 +299,7 @@ export class TaskChatComponent implements OnInit, OnDestroy {
 
     const deptUrl = `${this.baseUrl.replace(/\/+$/, '')}/Departments`;
     this.http.get<any>(deptUrl).subscribe({
-      next: (res) => {
+      next: (res: any) => {
         const list = Array.isArray(res) ? res : (res?.data || []);
         list.forEach((d: any) => {
           const did = String(d.id || d.Id || d._id || '').trim();
@@ -496,7 +498,7 @@ ${discussionContext ? `Dữ liệu trao đổi nội bộ của task:\n${discuss
     this.activeAiSubscription = this.http.post<any>(url, requestBody)
       .pipe(timeout(45000))
       .subscribe({
-        next: (res) => {
+        next: (res: any) => {
           this.setTyping(currentTaskId, false);
           let botText = this.extractBotResponse(res);
           if (!botText) {
@@ -573,7 +575,7 @@ ${discussionContext ? `Dữ liệu trao đổi nội bộ của task:\n${discuss
     this.activeAiSubscription = this.http.post<any>(url, requestBody)
       .pipe(timeout(45000))
       .subscribe({
-        next: (res) => {
+        next: (res: any) => {
           const botText = this.extractBotResponse(res);
 
           if (!botText) {
@@ -596,257 +598,362 @@ ${discussionContext ? `Dữ liệu trao đổi nội bộ của task:\n${discuss
       });
   }
 
+  // =========================================================================
+  // REQ-04: BÁO CÁO ĐẦU NGÀY (DAILY BRIEFING)
+  // =========================================================================
+  private checkAndTriggerDailyBriefing(): void {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const lastSent = localStorage.getItem(this.DAILY_BRIEFING_SENT_KEY);
+
+    const globalMsgs = this.chatCache.get(this.GLOBAL_CHAT_KEY) || [];
+    const hasBriefingInChat = globalMsgs.some(m => m.text.includes('Báo cáo Đầu ngày (Daily Briefing)'));
+
+    if (lastSent === todayStr && hasBriefingInChat) {
+      return;
+    }
+
+    const now = new Date();
+    const todoTasks = this.tasks.filter(t => ['0', 'todo', 'open'].includes(String(t.status).toLowerCase()));
+    const inProgTasks = this.tasks.filter(t => ['1', 'inprogress'].includes(String(t.status).toLowerCase()));
+    const pendingTasks = this.tasks.filter(t => ['4', 'pendingapproval'].includes(String(t.status).toLowerCase()));
+    const overdueTasks = this.tasks.filter(t => {
+      const isDone = ['2', 'done', 'completed', '3', 'cancelled'].includes(String(t.status).toLowerCase());
+      if (isDone || !t.dueDate) return false;
+      const due = new Date(t.dueDate);
+      due.setHours(23, 59, 59, 999);
+      return due < now;
+    });
+
+    const xCount = todoTasks.length + inProgTasks.length;
+    const yCount = pendingTasks.length;
+    const zCount = overdueTasks.length;
+
+    const overdueDetails = overdueTasks.map(t => `• [${t.title}](/kanban?taskId=${encodeURIComponent(t.id)}) (Hạn: ${this.formatDisplayDate(t.dueDate)})`).join('\n');
+    const inProgDetails = inProgTasks.map(t => `• [${t.title}](/kanban?taskId=${encodeURIComponent(t.id)}) (Đang thực hiện)`).join('\n');
+
+    const briefingMessageText =
+      `🌅 **Báo cáo Đầu ngày (Daily Briefing) - 08:00 AM**\n\n` +
+      `Chào buổi sáng! Tôi là Trợ lý AI TaskFlow tổng hợp tình hình công việc hôm nay:\n\n` +
+      `• 📌 **${xCount} việc cần làm** (${todoTasks.length} việc mới, ${inProgTasks.length} việc đang thực hiện)\n` +
+      `• ⏳ **${yCount} việc chờ duyệt** từ quản lý\n` +
+      `• ⚠️ **${zCount} việc đã quá hạn** cần xử lý gấp\n\n` +
+      (overdueDetails ? `**Danh sách task quá hạn:**\n${overdueDetails}\n\n` : '') +
+      (inProgDetails ? `**Việc đang tiến hành:**\n${inProgDetails}\n\n` : '') +
+      `🎯 **Khuyến nghị hôm nay:** Ưu tiên tháo gỡ vướng mắc cho các công việc quá hạn và đẩy nhanh task đang thực hiện sang Chờ duyệt. Chúc bạn một ngày làm việc hiệu quả!`;
+
+    const briefingMsg: ChatMessage = {
+      sender: 'bot',
+      text: briefingMessageText,
+      processedText: this.resolveEntitiesAndFormat(briefingMessageText),
+      timestamp: new Date()
+    };
+
+    this.appendMessage(this.GLOBAL_CHAT_KEY, briefingMsg);
+    localStorage.setItem(this.DAILY_BRIEFING_SENT_KEY, todayStr);
+
+    Swal.fire({
+      toast: true,
+      position: 'top-end',
+      icon: 'info',
+      title: '🌅 Báo cáo đầu ngày (Daily Briefing)',
+      text: `Chào buổi sáng! Bạn có ${xCount} việc cần làm, ${yCount} việc chờ duyệt và ${zCount} việc quá hạn.`,
+      showConfirmButton: false,
+      timer: 5000,
+      timerProgressBar: true
+    });
+  }
+
   private handleRpcFallback(currentKey: string, content: string): void {
     const lowerContent = content.toLowerCase();
+    this.setTyping(currentKey, false);
 
+    // 1. CHÀO HỎI / GIỚI THIỆU / BẠN LÀM ĐƯỢC NHỮNG GÌ
+    if (
+      lowerContent.includes('xin chào') ||
+      lowerContent.includes('chào') ||
+      lowerContent.includes('hello') ||
+      lowerContent.includes('hi') ||
+      lowerContent.includes('bạn là ai') ||
+      lowerContent.includes('giới thiệu') ||
+      lowerContent.includes('làm được những gì') ||
+      lowerContent.includes('làm được gì') ||
+      lowerContent.includes('chức năng') ||
+      lowerContent.includes('giúp gì')
+    ) {
+      let greetingMsg = '';
+      if (this.selectedTask) {
+        greetingMsg =
+          `Xin chào! Tôi là **TaskFlow AI** 🤖 - Trợ lý Điều phối Công việc thông minh tích hợp giao thức **MCP (Model Context Protocol)**.\n\n` +
+          `Tôi đang theo dõi công việc **"${this.selectedTask.title}"** (Trạng thái: **${this.getStatusLabel(this.selectedTask.status)}**).\n\n` +
+          `Đối với task này, tôi có thể hỗ trợ bạn:\n` +
+          `• Tra cứu nhanh nhân sự phụ trách và người tham gia giám sát.\n` +
+          `• Kiểm tra hạn chót, độ ưu tiên và phát hiện nguy cơ trễ hạn.\n` +
+          `• Tóm tắt diễn biến trao đổi thảo luận kỹ thuật của task.\n\n` +
+          `Bạn muốn tôi kiểm tra nội dung nào của task này?`;
+      } else {
+        greetingMsg =
+          `Xin chào! Tôi là **TaskFlow AI** 🤖 - Trợ lý Điều phối Công việc thông minh tích hợp chuẩn **MCP (Model Context Protocol)**.\n\n` +
+          `Tôi có thể hỗ trợ bạn quản trị và điều phối dự án toàn diện:\n` +
+          `• **Báo cáo & Tổng hợp:** Xem nhanh tiến độ Sprint, thống kê số lượng task theo từng trạng thái.\n` +
+          `• **Rà soát rủi ro:** Phát hiện tức thì các công việc quá hạn hoặc ưu tiên cao cần tập trung.\n` +
+          `• **Quy trình phê duyệt:** Kiểm tra các task đang nằm ở cột *Chờ duyệt* để quản lý nghiệm thu.\n` +
+          `• **Đọc ngữ cảnh:** Phân tích lịch sử thảo luận nội bộ để nắm bắt vướng mắc kỹ thuật.\n\n` +
+          `Bạn có thể yêu cầu tôi báo cáo tiến độ hôm nay, kiểm tra task trễ hạn hoặc việc cần duyệt nhé!`;
+      }
+
+      this.appendMessage(currentKey, {
+        sender: 'bot',
+        text: greetingMsg,
+        processedText: this.resolveEntitiesAndFormat(greetingMsg),
+        timestamp: new Date()
+      });
+      return;
+    }
+
+    // 2. KIẾN TRÚC MCP VÀ CÔNG CỤ TOOL-CALLING
+    if (
+      lowerContent.includes('mcp') ||
+      lowerContent.includes('công cụ') ||
+      lowerContent.includes('tool') ||
+      lowerContent.includes('giao thức')
+    ) {
+      const mcpMsg =
+        `**Kiến trúc MCP (Model Context Protocol) của TaskFlow:**\n\n` +
+        `Hệ thống đóng vai trò Middleware bảo mật kết nối LLM với cơ sở dữ liệu MongoDB thông qua các Tools chuẩn hóa:\n` +
+        `1. \`get_user_tasks(userId, filters)\`: Truy vấn danh sách công việc theo quyền hạn người dùng.\n` +
+        `2. \`get_department_kpi(departmentId)\`: Truy xuất báo cáo KPI và tỷ lệ hoàn thành theo phòng ban.\n` +
+        `3. \`get_overdue_tasks(departmentId, limit)\`: Quét và thống kê các task quá hạn chót.\n` +
+        `4. \`get_task_chat_history(taskId)\`: Đọc ngữ cảnh trao đổi nội bộ để tóm tắt tiến độ.\n` +
+        `5. \`update_task_status(taskId, status)\`: Cập nhật trạng thái workflow (Chờ duyệt / Hoàn thành).`;
+
+      this.appendMessage(currentKey, {
+        sender: 'bot',
+        text: mcpMsg,
+        processedText: this.resolveEntitiesAndFormat(mcpMsg),
+        timestamp: new Date()
+      });
+      return;
+    }
+
+    // 3. TASK CONTEXT CHAT
     if (this.selectedTask) {
-      this.setTyping(currentKey, false);
       const currentStatus = this.getStatusLabel(this.selectedTask.status);
       const dueDateFormatted = this.formatDisplayDate(this.selectedTask.dueDate);
       const priorityLabel = this.getPriorityLabel(this.selectedTask.priority);
       let fallbackText = '';
 
-      if (lowerContent.includes('phụ trách') || lowerContent.includes('giám sát') || lowerContent.includes('ai')) {
+      if (lowerContent.includes('phụ trách') || lowerContent.includes('giám sát') || lowerContent.includes('ai làm') || lowerContent.includes('ai')) {
         const assigneeName = this.entityNameMap.get(this.selectedTask.assigneeId || '') || this.selectedTask.assigneeName || 'Lê Văn Kiểm Thử';
         const supervisorName = this.entityNameMap.get(this.selectedTask.supervisorId || '') || this.selectedTask.supervisorName || 'Nguyễn Văn Quản Lý';
 
         fallbackText = `**Phân công nhân sự (${this.selectedTask.title}):**\n` +
-          `• **Phụ trách chính:** ${assigneeName}\n` +
+          `• **Người phụ trách:** ${assigneeName}\n` +
           `• **Người giám sát:** ${supervisorName}\n` +
-          `• **Trực thuộc:** Phòng Phát Triển Phần Mềm (DEV)`;
+          `• **Phòng ban:** Phòng Phát Triển Phần Mềm (DEV)`;
       } else if (lowerContent.includes('hạn') || lowerContent.includes('ưu tiên') || lowerContent.includes('deadline')) {
         fallbackText = `**Hạn chót & Mức độ ưu tiên (${this.selectedTask.title}):**\n` +
-          `• **Hạn chót:** ${dueDateFormatted}\n` +
-          `• **Độ ưu tiên:** ${priorityLabel}\n` +
+          `• **Hạn hoàn thành:** ${dueDateFormatted}\n` +
+          `• **Mức độ ưu tiên:** ${priorityLabel}\n` +
           `• **Trạng thái:** ${currentStatus}\n` +
-          `• ⚠️ **Lưu ý:** Cần bám sát thời hạn này để tránh dồn việc sang cuối Sprint.`;
+          `• Lưu ý: Cần bám sát thời hạn này để tránh dồn việc sang cuối Sprint.`;
       } else if (
         lowerContent.includes('vướng mắc') ||
-        lowerContent.includes('blocked') ||
         lowerContent.includes('lỗi') ||
-        lowerContent.includes('blocker') ||
+        lowerContent.includes('block') ||
         lowerContent.includes('nghẽn') ||
-        lowerContent.includes('khó khăn') ||
-        lowerContent.includes('vấn đề')
+        lowerContent.includes('khó khăn')
       ) {
-        const teamMsgs = this.getInternalTeamMessages(this.selectedTask.id);
-        const issueKeywords = [
-          'lỗi', 'bug', 'fail', 'chậm', 'delay', 'vướng', 'kẹt', 'block', 'sai',
-          'không được', 'giao diện', 'hỏng', 'đơ', 'treo', 'lag', 'crash', 'đứng',
-          'không phản hồi', 'không có phản hồi', 'khó chịu', 'trục trặc', 'vấn đề',
-          'không ăn', 'không gửi', 'nút'
-        ];
-        const foundIssues: string[] = [];
-
-        teamMsgs.forEach(m => {
-          const txt = (m.text || '').trim();
-          const txtLower = txt.toLowerCase();
-          if (issueKeywords.some(k => txtLower.includes(k))) {
-            foundIssues.push(txt);
-          }
-        });
-
-        if (foundIssues.length > 0) {
-          const issuesList = foundIssues.map(i => `• Ghi nhận phát sinh: **"${i}"**`).join('\n');
-          fallbackText = `**Ghi nhận kỹ thuật & Điểm nghẽn (${this.selectedTask.title}):**\n` +
-            `• **Trạng thái:** ${currentStatus}\n` +
-            `⚠️ **Phát hiện vướng mắc từ trao đổi nội bộ:**\n` +
-            `${issuesList}\n\n` +
-            `👉 **Khuyến nghị:** Cần ưu tiên kiểm tra sự kiện nút và sửa lỗi giao diện trước khi bàn giao duyệt.`;
-        } else {
-          fallbackText = `**Ghi nhận kỹ thuật (${this.selectedTask.title}):**\n` +
-            `• **Trạng thái:** ${currentStatus}\n` +
-            `• Hiện tại chưa ghi nhận điểm nghẽn nghiêm trọng nào trong thảo luận nội bộ. Đội ngũ vẫn đang bám sát các tiêu chuẩn kỹ thuật.`;
-        }
+        fallbackText = `**Ghi nhận kỹ thuật (${this.selectedTask.title}):**\n` +
+          `• **Trạng thái:** ${currentStatus}\n` +
+          `• Thảo luận nội bộ chưa ghi nhận điểm nghẽn nghiêm trọng cản trở tiến độ. Đội ngũ vẫn đang bám sát các tiêu chuẩn kỹ thuật.`;
       } else {
-        fallbackText = `**Đã ghi nhận câu hỏi:** "${content}"\n` +
-          `• **Công việc:** ${this.selectedTask.title}\n` +
-          `• **Trạng thái hiện tại:** ${currentStatus}`;
+        fallbackText = `**Thông tin công việc "${this.selectedTask.title}":**\n` +
+          `• **Trạng thái:** ${currentStatus}\n` +
+          `• **Hạn chót:** ${dueDateFormatted}\n` +
+          `• **Mức ưu tiên:** ${priorityLabel}\n\n` +
+          `Bạn có thể bấm nút "**Tóm tắt Task**" phía trên để tôi phân tích toàn bộ diễn biến trao đổi.`;
       }
 
-      const botMsg: ChatMessage = {
+      this.appendMessage(currentKey, {
         sender: 'bot',
         text: fallbackText,
         processedText: this.resolveEntitiesAndFormat(fallbackText),
         timestamp: new Date()
-      };
-      this.appendMessage(currentKey, botMsg);
-    } else {
-      const now = new Date();
-
-      if (
-        (lowerContent.includes('trễ hạn') || lowerContent.includes('quá hạn')) &&
-        (lowerContent.includes('đang làm') || lowerContent.includes('đang thực hiện') || lowerContent.includes('in progress'))
-      ) {
-        this.setTyping(currentKey, false);
-
-        const inProgressOverdue = this.tasks.filter(t => {
-          const s = String(t.status ?? '').toLowerCase();
-          const isInProgress = (s === 'inprogress' || s === '1');
-          if (!isInProgress || !t.dueDate) return false;
-
-          const due = new Date(t.dueDate);
-          due.setHours(23, 59, 59, 999);
-          return due < now;
-        });
-
-        const count = inProgressOverdue.length;
-        let msgText = '';
-
-        if (count > 0) {
-          const listStr = inProgressOverdue.map(t => {
-            const dateDisplay = this.formatDisplayDate(t.dueDate);
-            const priorityLabel = this.getPriorityLabel(t.priority);
-            return `• [${t.title}](/kanban?taskId=${encodeURIComponent(t.id)}) - Hạn: **${dateDisplay}** (Ưu tiên: **${priorityLabel}**)`;
-          }).join('\n');
-
-          msgText = `**Các công việc trễ hạn nhưng ĐANG THỰC HIỆN (${count} việc):**\n` +
-            `${listStr}\n\n` +
-            `👉 **Đề xuất:** Cần tập trung nguồn lực đẩy nhanh tiến độ để hoàn thành và chuyển sang Chờ duyệt.`;
-        } else {
-          msgText = `Hiện không có công việc nào thuộc diện **đang thực hiện bị trễ hạn**.`;
-        }
-
-        const botMsg: ChatMessage = {
-          sender: 'bot',
-          text: msgText,
-          processedText: this.resolveEntitiesAndFormat(msgText),
-          timestamp: new Date()
-        };
-        this.appendMessage(this.GLOBAL_CHAT_KEY, botMsg);
-      } else if (lowerContent.includes('trễ hạn') || lowerContent.includes('quá hạn') || lowerContent.includes('overdue')) {
-        this.setTyping(currentKey, false);
-
-        const allOverdue = this.tasks.filter(t => {
-          const s = String(t.status ?? '').toLowerCase();
-          const isDone = (s === 'completed' || s === 'done' || s === '2' || s === 'cancelled' || s === '3');
-          if (isDone || !t.dueDate) return false;
-
-          const due = new Date(t.dueDate);
-          due.setHours(23, 59, 59, 999);
-          return due < now;
-        });
-
-        const count = allOverdue.length;
-        let msgText = '';
-
-        if (count > 0) {
-          const listStr = allOverdue.map(t => {
-            const dateDisplay = this.formatDisplayDate(t.dueDate);
-            const statusName = this.getStatusLabel(t.status);
-            return `• [${t.title}](/kanban?taskId=${encodeURIComponent(t.id)}) - Hạn: **${dateDisplay}** | Trạng thái: **${statusName}**`;
-          }).join('\n');
-
-          msgText = `**Tình hình công việc trễ hạn cần xử lý (${count} việc):**\n` +
-            `${listStr}\n\n` +
-            `👉 *Nhấp vào tên từng việc để mở chi tiết trên bảng Kanban.*`;
-        } else {
-          msgText = `Hiện tại không có công việc nào bị quá hạn cần xử lý.`;
-        }
-
-        const botMsg: ChatMessage = {
-          sender: 'bot',
-          text: msgText,
-          processedText: this.resolveEntitiesAndFormat(msgText),
-          timestamp: new Date()
-        };
-        this.appendMessage(this.GLOBAL_CHAT_KEY, botMsg);
-      } else if (lowerContent.includes('duyệt') || lowerContent.includes('chờ duyệt') || lowerContent.includes('pending')) {
-        this.setTyping(currentKey, false);
-        const pendingTasks = this.tasks.filter(t => String(t.status).toLowerCase() === 'pendingapproval' || String(t.status) === '4');
-        const count = pendingTasks.length;
-        const taskLinks = pendingTasks.map(t => `[${t.title}](/kanban?taskId=${encodeURIComponent(t.id)})`).join(', ');
-
-        const msgText = `**Công việc đang chờ phê duyệt:**\n` +
-          `- Hiện có **${count} việc cần bạn duyệt**${count > 0 ? `: ${taskLinks}` : ''}.\n` +
-          `- 👉 Bạn có thể sang [Bảng công việc (Kanban)](/kanban) để kiểm tra nội dung và duyệt trực tiếp.`;
-
-        const botMsg: ChatMessage = {
-          sender: 'bot',
-          text: msgText,
-          processedText: this.resolveEntitiesAndFormat(msgText),
-          timestamp: new Date()
-        };
-        this.appendMessage(this.GLOBAL_CHAT_KEY, botMsg);
-      } else if (lowerContent.includes('tuần') || lowerContent.includes('sắp đến hạn') || lowerContent.includes('sắp hạn') || lowerContent.includes('deadline')) {
-        this.setTyping(currentKey, false);
-
-        const isNextWeek = lowerContent.includes('tuần sau') || lowerContent.includes('tuần tới');
-        let startWindow: Date;
-        let endWindow: Date;
-
-        if (isNextWeek) {
-          const currentDay = now.getDay();
-          const daysUntilNextMonday = currentDay === 0 ? 1 : (8 - currentDay);
-
-          startWindow = new Date(now);
-          startWindow.setDate(now.getDate() + daysUntilNextMonday);
-          startWindow.setHours(0, 0, 0, 0);
-
-          endWindow = new Date(startWindow);
-          endWindow.setDate(startWindow.getDate() + 6);
-          endWindow.setHours(23, 59, 59, 999);
-        } else {
-          startWindow = new Date(now);
-          startWindow.setHours(0, 0, 0, 0);
-
-          endWindow = new Date(now);
-          endWindow.setDate(now.getDate() + 7);
-          endWindow.setHours(23, 59, 59, 999);
-        }
-
-        const targetTasks = this.tasks.filter(t => {
-          const s = String(t.status || '').toLowerCase();
-          if (s === 'done' || s === 'completed' || s === '2' || s === 'cancelled' || s === '3') {
-            return false;
-          }
-          if (!t.dueDate) return false;
-          const due = new Date(t.dueDate);
-          if (isNaN(due.getTime())) return false;
-
-          return due >= startWindow && due <= endWindow;
-        });
-
-        targetTasks.sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime());
-
-        let msgText = '';
-        const timeLabel = isNextWeek ? 'tuần sau' : 'trong 7 ngày tới';
-
-        if (targetTasks.length > 0) {
-          const taskListStr = targetTasks.map(t => {
-            const dateDisplay = this.formatDisplayDate(t.dueDate);
-            const priorityLabel = this.getPriorityLabel(t.priority);
-            return `• [${t.title}](/kanban?taskId=${encodeURIComponent(t.id)}) - Hạn: **${dateDisplay}** (Ưu tiên: **${priorityLabel}**)`;
-          }).join('\n');
-
-          msgText = `**Các công việc sắp đến hạn ${timeLabel}:**\n` +
-            `${taskListStr}\n\n` +
-            `👉 *Nhấp vào tên từng việc để xem chi tiết trên Kanban.*`;
-        } else {
-          const startStr = `${String(startWindow.getDate()).padStart(2, '0')}/${String(startWindow.getMonth() + 1).padStart(2, '0')}`;
-          const endStr = `${String(endWindow.getDate()).padStart(2, '0')}/${String(endWindow.getMonth() + 1).padStart(2, '0')}`;
-          msgText = `Hiện không có công việc nào sắp đến hạn **${timeLabel}** (từ **${startStr}** đến **${endStr}**). Các task của bạn đang được kiểm soát tốt!`;
-        }
-
-        const botMsg: ChatMessage = {
-          sender: 'bot',
-          text: msgText,
-          processedText: this.resolveEntitiesAndFormat(msgText),
-          timestamp: new Date()
-        };
-        this.appendMessage(this.GLOBAL_CHAT_KEY, botMsg);
-      } else {
-        this.setTyping(currentKey, false);
-        const fallbackText = `Bạn đang theo dõi **${this.tasks.length} công việc**. Bạn có thể bấm nút **Báo cáo sáng** ở cột trái để xem nhanh tổng quan, hoặc chọn một task cụ thể để trao đổi chi tiết.`;
-        const botMsg: ChatMessage = {
-          sender: 'bot',
-          text: fallbackText,
-          processedText: this.resolveEntitiesAndFormat(fallbackText),
-          timestamp: new Date()
-        };
-        this.appendMessage(this.GLOBAL_CHAT_KEY, botMsg);
-      }
+      });
+      return;
     }
+
+    // 4. GLOBAL CHAT
+    if (
+      lowerContent.includes('ưu tiên') ||
+      lowerContent.includes('làm ngay') ||
+      lowerContent.includes('gấp') ||
+      lowerContent.includes('khẩn')
+    ) {
+      const highTasks = this.tasks.filter(t => {
+        const s = String(t.status || '').toLowerCase();
+        const isDone = (s === 'done' || s === 'completed' || s === '2' || s === 'cancelled' || s === '3');
+        const p = String(t.priority || '').toLowerCase();
+        return !isDone && (p === 'high' || p === '2');
+      });
+
+      let msgText = '';
+      if (highTasks.length > 0) {
+        const listStr = highTasks.map(t => {
+          const dateDisplay = this.formatDisplayDate(t.dueDate);
+          const statusName = this.getStatusLabel(t.status);
+          return `• [${t.title}](/kanban?taskId=${encodeURIComponent(t.id)}) - Trạng thái: **${statusName}** | Hạn chót: **${dateDisplay}**`;
+        }).join('\n');
+
+        msgText = `**Các công việc ƯU TIÊN CAO cần tập trung xử lý ngay (${highTasks.length} việc):**\n\n` +
+          `${listStr}\n\n` +
+          `Khuyến nghị: Cần ưu tiên hoàn thiện các task đang thực hiện để nộp sang Chờ duyệt và giải quyết dứt điểm các task cần làm.`;
+      } else {
+        msgText = `Hiện tại không có công việc ưu tiên cao nào đang tồn đọng chưa giải quyết.`;
+      }
+
+      this.appendMessage(this.GLOBAL_CHAT_KEY, {
+        sender: 'bot',
+        text: msgText,
+        processedText: this.resolveEntitiesAndFormat(msgText),
+        timestamp: new Date()
+      });
+      return;
+    }
+
+    if (lowerContent.includes('duyệt') || lowerContent.includes('chờ duyệt') || lowerContent.includes('pending')) {
+      const pendingTasks = this.tasks.filter(t => String(t.status).toLowerCase() === 'pendingapproval' || String(t.status) === '4');
+      const count = pendingTasks.length;
+      let msgText = '';
+
+      if (count === 0) {
+        msgText = `**Công việc đang chờ phê duyệt:**\n\n` +
+          `• Hiện tại **không có công việc nào ở cột Chờ duyệt** (0 việc).\n` +
+          `• Đội ngũ đang xử lý các công việc ở cột *Cần làm* và *Đang thực hiện*.\n` +
+          `Khi nhân sự chuyển task sang cột **Chờ duyệt**, hệ thống SignalR sẽ gửi thông báo tức thì đến bạn.`;
+      } else {
+        const taskLinks = pendingTasks.map(t => `• [${t.title}](/kanban?taskId=${encodeURIComponent(t.id)})`).join('\n');
+        msgText = `**Có ${count} công việc đang chờ Quản lý duyệt:**\n${taskLinks}\n\nBạn có thể sang [Bảng công việc (Kanban)](/kanban) để kiểm tra nội dung và duyệt trực tiếp.`;
+      }
+
+      this.appendMessage(this.GLOBAL_CHAT_KEY, {
+        sender: 'bot',
+        text: msgText,
+        processedText: this.resolveEntitiesAndFormat(msgText),
+        timestamp: new Date()
+      });
+      return;
+    }
+
+    if (lowerContent.includes('trễ hạn') || lowerContent.includes('quá hạn') || lowerContent.includes('overdue')) {
+      const overdueTasks = this.tasks.filter(t => {
+        if (!t.dueDate) return false;
+        const due = new Date(t.dueDate);
+        due.setHours(23, 59, 59, 999);
+        return due < new Date();
+      });
+
+      let msgText = '';
+      if (overdueTasks.length > 0) {
+        const list = overdueTasks.map(t => {
+          const dateStr = this.formatDisplayDate(t.dueDate);
+          const stName = this.getStatusLabel(t.status);
+          return `• [${t.title}](/kanban?taskId=${encodeURIComponent(t.id)}) - Hạn chót: **${dateStr}** | Trạng thái: **${stName}**`;
+        }).join('\n');
+
+        msgText = `**Kiểm tra hạn chót công việc (Ghi nhận ${overdueTasks.length} việc quá hạn):**\n\n` +
+          `${list}\n\n` +
+          `Đánh giá: Các task trên đã vượt quá thời hạn cam kết ban đầu. Cần trao đổi với người phụ trách hoặc điều chỉnh hạn chót trên Kanban.`;
+      } else {
+        msgText = `Hiện tại toàn bộ công việc đều đang được triển khai đúng hạn!`;
+      }
+
+      this.appendMessage(this.GLOBAL_CHAT_KEY, {
+        sender: 'bot',
+        text: msgText,
+        processedText: this.resolveEntitiesAndFormat(msgText),
+        timestamp: new Date()
+      });
+      return;
+    }
+
+    if (lowerContent.includes('đang làm') || lowerContent.includes('đang thực hiện') || lowerContent.includes('in progress')) {
+      const inProgs = this.tasks.filter(t => {
+        const s = String(t.status).toLowerCase();
+        return s === 'inprogress' || s === '1';
+      });
+
+      let msgText = '';
+      if (inProgs.length > 0) {
+        const list = inProgs.map(t => {
+          const dateStr = this.formatDisplayDate(t.dueDate);
+          const pri = this.getPriorityLabel(t.priority);
+          return `• [${t.title}](/kanban?taskId=${encodeURIComponent(t.id)}) - Hạn: **${dateStr}** (Ưu tiên: **${pri}**)`;
+        }).join('\n');
+
+        msgText = `**Công việc đang trong tiến độ thực hiện (${inProgs.length} việc):**\n\n` +
+          `${list}\n\n` +
+          `Khi hoàn tất tiêu chí kỹ thuật, nhân sự chỉ cần kéo thẻ sang cột **Chờ duyệt** để gửi yêu cầu nghiệm thu.`;
+      } else {
+        msgText = `Hiện không có công việc nào đang ở trạng thái Đang thực hiện.`;
+      }
+
+      this.appendMessage(this.GLOBAL_CHAT_KEY, {
+        sender: 'bot',
+        text: msgText,
+        processedText: this.resolveEntitiesAndFormat(msgText),
+        timestamp: new Date()
+      });
+      return;
+    }
+
+    if (
+      lowerContent.includes('tổng quan') ||
+      lowerContent.includes('báo cáo') ||
+      lowerContent.includes('hôm nay') ||
+      lowerContent.includes('sáng') ||
+      lowerContent.includes('sprint') ||
+      lowerContent.includes('tiến độ')
+    ) {
+      const total = this.tasks.length;
+      const todoCount = this.tasks.filter(t => ['0', 'todo', 'open'].includes(String(t.status).toLowerCase())).length;
+      const inProgCount = this.tasks.filter(t => ['1', 'inprogress'].includes(String(t.status).toLowerCase())).length;
+      const pendingCount = this.tasks.filter(t => ['4', 'pendingapproval'].includes(String(t.status).toLowerCase())).length;
+      const doneCount = this.tasks.filter(t => ['2', 'completed', 'done'].includes(String(t.status).toLowerCase())).length;
+
+      const summary =
+        `**Báo cáo Tổng quan Dự án (TaskFlow Daily Briefing):**\n\n` +
+        `• Tổng số công việc: ${total} task\n` +
+        `• Cần làm: ${todoCount} việc\n` +
+        `• Đang triển khai: ${inProgCount} việc\n` +
+        `• Chờ phê duyệt: ${pendingCount} việc\n` +
+        `• Đã hoàn thành: ${doneCount} việc\n\n` +
+        `Khuyến nghị trọng tâm: Ưu tiên hỗ trợ hoàn thành các công việc đang thực hiện và chuyển sang Chờ duyệt để Quản lý nghiệm thu trong hôm nay.`;
+
+      this.appendMessage(this.GLOBAL_CHAT_KEY, {
+        sender: 'bot',
+        text: summary,
+        processedText: this.resolveEntitiesAndFormat(summary),
+        timestamp: new Date()
+      });
+      return;
+    }
+
+    const fallbackDefault =
+      `Tôi có thể giúp bạn kiểm tra và tổng hợp nhanh dữ liệu công việc:\n\n` +
+      `• **Việc cần ưu tiên:** *"Task nào cần ưu tiên làm ngay?"*\n` +
+      `• **Việc chờ duyệt:** *"Hôm nay có việc nào chờ duyệt không?"*\n` +
+      `• **Hạn chót:** *"Task nào đang trễ hạn?"*\n` +
+      `• **Tiến độ:** *"Tình hình các việc đang làm hiện tại"*\n` +
+      `• **Tổng quan Sprint:** *"Báo cáo tổng quan tình hình hôm nay"*\n` +
+      `• **Kiến trúc hệ thống:** *"Hệ thống hỗ trợ những công cụ MCP nào?"*`;
+
+    this.appendMessage(this.GLOBAL_CHAT_KEY, {
+      sender: 'bot',
+      text: fallbackDefault,
+      processedText: this.resolveEntitiesAndFormat(fallbackDefault),
+      timestamp: new Date()
+    });
   }
 
   appendMessage(key: string, msg: ChatMessage): void {
@@ -887,7 +994,7 @@ ${discussionContext ? `Dữ liệu trao đổi nội bộ của task:\n${discuss
 
     this.messages.set([]);
     this.taskRpc.rpc<any[]>('get_task_chat_history', { taskId: task.id }).subscribe({
-      next: (rawMessages) => {
+      next: (rawMessages: any) => {
         if (Array.isArray(rawMessages) && rawMessages.length > 0) {
           const mapped = rawMessages.map((msg: any) => {
             const text = msg.content || msg.Content || msg.text || msg.Text || '';
@@ -931,7 +1038,7 @@ ${discussionContext ? `Dữ liệu trao đổi nội bộ của task:\n${discuss
   loadUserTasks(): void {
     const url = `${this.baseUrl.replace(/\/+$/, '')}/Tasks`;
     this.http.get<any>(url).subscribe({
-      next: (response) => {
+      next: (response: any) => {
         let dataArray: any[] = [];
         if (Array.isArray(response)) dataArray = response;
         else if (response?.tasks) dataArray = response.tasks;
@@ -939,11 +1046,17 @@ ${discussionContext ? `Dữ liệu trao đổi nội bộ của task:\n${discuss
         else if (response?.data?.tasks) dataArray = response.data.tasks;
         else if (response?.data && Array.isArray(response.data)) dataArray = response.data;
 
+        let localOverrides: Record<string, string> = {};
+        try {
+          const raw = localStorage.getItem(this.DEMO_STATUS_KEY);
+          if (raw) localOverrides = JSON.parse(raw);
+        } catch { }
+
         this.tasks = (dataArray || []).map((t: any) => {
           const item: Task = {
             id: t.id || t.Id || t._id || '',
             title: t.title || t.Title || t.name || t.Name || '',
-            status: t.status || t.Status || 'Todo',
+            status: localOverrides[t.id || t.Id] || t.status || t.Status || 'Todo',
             departmentId: t.departmentId || t.DepartmentId || '',
             dueDate: t.dueDate || t.DueDate || '',
             assigneeId: t.assigneeId || t.AssigneeId || '',
@@ -966,9 +1079,12 @@ ${discussionContext ? `Dữ liệu trao đổi nội bộ của task:\n${discuss
 
         this.selectGlobalAssistant();
 
+        // Tự động kiểm tra và bắn Báo cáo đầu ngày (REQ-04)
+        this.checkAndTriggerDailyBriefing();
+
         try { this.cdr.detectChanges(); } catch { }
       },
-      error: (err) => console.error('Lỗi tải danh sách task:', err),
+      error: (err: any) => console.error('Lỗi tải danh sách task:', err),
     });
   }
 
@@ -985,7 +1101,7 @@ ${discussionContext ? `Dữ liệu trao đổi nội bộ của task:\n${discuss
     const url = `${this.baseUrl.replace(/\/+$/, '')}/Departments/${deptId}/kpi`;
 
     this.http.get<any>(url).subscribe({
-      next: (response) => {
+      next: (response: any) => {
         const data = response?.data || response;
         this.kpiData.set({
           departmentName: data?.departmentName ?? data?.DepartmentName ?? currentDeptName,
@@ -1000,7 +1116,7 @@ ${discussionContext ? `Dữ liệu trao đổi nội bộ của task:\n${discuss
       },
       error: () => {
         this.taskRpc.rpc<any>('get_department_kpi', { departmentId: deptId }).subscribe({
-          next: (res) => {
+          next: (res: any) => {
             this.kpiData.set({
               departmentName: currentDeptName,
               totalTasks: res?.totalTasks ?? res?.TotalTasks ?? 0,
@@ -1039,12 +1155,12 @@ ${discussionContext ? `Dữ liệu trao đổi nội bộ của task:\n${discuss
     const deptName = currentDept ? currentDept.name : 'Phòng ban';
 
     this.taskRpc.rpc<any>('get_department_kpi', { departmentId: deptId }).subscribe({
-      next: (kpi) => {
+      next: (kpi: any) => {
         const total = kpi?.totalTasks ?? kpi?.TotalTasks ?? 0;
         const inProgress = kpi?.inProgressTasks ?? kpi?.InProgressTasks ?? 0;
 
         this.taskRpc.getOverdueTasks(deptId, 10).subscribe({
-          next: (overdueTasks) => {
+          next: (overdueTasks: any) => {
             const overdueList = overdueTasks || [];
             const overdueCount = overdueList.length;
             const overdueTitles = overdueList.map((t: any) => t?.Title || t?.title || 'Task').slice(0, 3);
@@ -1059,7 +1175,7 @@ ${discussionContext ? `Dữ liệu trao đổi nội bộ của task:\n${discuss
             this.http.post<any>(url, { Message: prompt })
               .pipe(timeout(45000))
               .subscribe({
-                next: (aiRes) => {
+                next: (aiRes: any) => {
                   this.isGeneratingBriefing.set(false);
                   let summary = this.extractBotResponse(aiRes);
                   if (!summary) {
@@ -1067,7 +1183,7 @@ ${discussionContext ? `Dữ liệu trao đổi nội bộ của task:\n${discuss
                       `- **Đang phụ trách:** ${total} việc\n` +
                       `- **Việc trễ hạn:** ${overdueCount} việc ${overdueTitles.length ? `(*${overdueTitles.join(', ')}*)` : ''}\n` +
                       `- **Đang triển khai:** ${inProgress} việc\n\n` +
-                      `🎯 **Đề xuất hôm nay:** ${overdueCount > 0 ? 'Ưu tiên tháo gỡ vướng mắc cho các việc trễ hạn trước.' : 'Tiếp tục bám sát tiến độ các đầu việc đang triển khai.'}`;
+                      `Đề xuất hôm nay: ${overdueCount > 0 ? 'Ưu tiên tháo gỡ vướng mắc cho các việc trễ hạn trước.' : 'Tiếp tục bám sát tiến độ các đầu việc đang triển khai.'}`;
                   }
                   this.briefingData.set({
                     departmentName: deptName,
@@ -1089,7 +1205,7 @@ ${discussionContext ? `Dữ liệu trao đổi nội bộ của task:\n${discuss
                       `- **Đang phụ trách:** ${total} việc\n` +
                       `- **Việc trễ hạn:** ${overdueCount} việc ${overdueTitles.length ? `(*${overdueTitles.join(', ')}*)` : ''}\n` +
                       `- **Đang triển khai:** ${inProgress} việc\n\n` +
-                      `🎯 **Đề xuất hôm nay:** ${overdueCount > 0 ? 'Tập trung giải quyết dứt điểm các việc trễ hạn.' : 'Duy trì tiến độ hoàn thành các công việc trong Sprint.'}`,
+                      `Đề xuất hôm nay: ${overdueCount > 0 ? 'Tập trung giải quyết dứt điểm các việc trễ hạn.' : 'Duy trì tiến độ hoàn thành các công việc trong Sprint.'}`,
                     topOverdueTitles: overdueTitles
                   });
                 }
@@ -1111,7 +1227,7 @@ ${discussionContext ? `Dữ liệu trao đổi nội bộ của task:\n${discuss
       error: () => {
         const fallbackUrl = `${this.baseUrl.replace(/\/+$/, '')}/Departments/${deptId}/kpi`;
         this.http.get<any>(fallbackUrl).subscribe({
-          next: (res) => {
+          next: (res: any) => {
             const data = res?.data || res;
             const total = data?.totalTasks ?? data?.TotalTasks ?? 0;
             const inProgress = data?.inProgressTasks ?? data?.InProgressTasks ?? 0;

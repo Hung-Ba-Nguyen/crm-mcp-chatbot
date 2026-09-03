@@ -58,7 +58,7 @@
             </div>
           </div>
 
-          <!-- Metadata Box Hiển thị Tên Nhân sự & Phòng ban sạch sẽ -->
+          <!-- Metadata Box Hiển thị Tên Nhân sự & Phòng ban -->
           <div class="metadata-clean-box">
             <div class="meta-row">
               <span class="meta-label">Phòng ban phụ trách:</span>
@@ -114,7 +114,6 @@
               <mat-icon>delete_outline</mat-icon>
             </button>
 
-            <!-- HEADER CARD: TIÊU ĐỀ BÊN TRÁI, NÚT TÓM TẮT AI BÊN PHẢI -->
             <div class="card-header">
               <div class="title-with-dot">
                 <span class="priority-dot"></span>
@@ -126,7 +125,6 @@
               </button>
             </div>
 
-            <!-- FOOTER CARD: THÔNG THOÁNG, KHÔNG BỊ CHÈN ÉP -->
             <div class="task-meta-bottom">
               <div class="avatar-group" [title]="displayUserName(t.assigneeId, t.id)">
                 <div class="avatar-circle"><mat-icon>person</mat-icon></div>
@@ -169,10 +167,22 @@
                 <span class="priority-dot"></span>
                 <h4 class="task-title">{{ t.title }}</h4>
               </div>
-              <button type="button" class="btn-ai-summarize-top" (click)="summarizeTaskChat(t.id, $event)" title="Tóm tắt nội dung task bằng AI">
-                <mat-icon>auto_awesome</mat-icon>
-                <span>Tóm tắt</span>
-              </button>
+
+              <div style="display: flex; gap: 6px; align-items: center;">
+                <!-- NÚT GỬI DUYỆT 1-CLICK DÀNH RIÊNG CHO DEMO -->
+                <button type="button"
+                        style="background: #6366f1; color: white; border: none; border-radius: 8px; padding: 3px 8px; font-size: 11px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 3px;"
+                        (click)="submitForApproval(t, $event)"
+                        title="Gửi duyệt công việc ngay">
+                  <mat-icon style="font-size: 13px; width: 13px; height: 13px;">send</mat-icon>
+                  <span>Duyệt</span>
+                </button>
+
+                <button type="button" class="btn-ai-summarize-top" (click)="summarizeTaskChat(t.id, $event)" title="Tóm tắt nội dung task bằng AI">
+                  <mat-icon>auto_awesome</mat-icon>
+                  <span>Tóm tắt</span>
+                </button>
+              </div>
             </div>
             <div class="task-meta-bottom">
               <div class="avatar-group" [title]="displayUserName(t.assigneeId, t.id)">
@@ -195,18 +205,26 @@
       </div>
     </div>
 
-    <!-- CỘT 3: CHỜ DUYỆT -->
+    <!-- CỘT 3: CHỜ DUYỆT (MIN-HEIGHT 350PX ĐẢM BẢO THẢ ĐƯỢC CHUỘT DỄ DÀNG KHI RỖNG) -->
     <div class="kanban-col">
       <div class="col-title-wrap">
         <span class="col-title">Chờ duyệt</span>
         <span class="col-counter pending">{{ filteredPending().length }}</span>
       </div>
-      <div #pendingApprovalList="cdkDropList" cdkDropList [cdkDropListData]="allPending()" class="col-list" [cdkDropListConnectedTo]="[todoList, inProgressList, completedList]" (cdkDropListDropped)="drop($event, 'PendingApproval')">
+      <div #pendingApprovalList="cdkDropList"
+           cdkDropList
+           [cdkDropListData]="allPending()"
+           class="col-list"
+           style="min-height: 350px;"
+           [cdkDropListConnectedTo]="[todoList, inProgressList, completedList]"
+           (cdkDropListDropped)="drop($event, 'PendingApproval')">
         <ng-container *ngIf="isLoading(); else pendingContent">
           <div *ngFor="let s of [1,2]" class="skeleton-card"></div>
         </ng-container>
         <ng-template #pendingContent>
-          <div *ngIf="filteredPending().length === 0" class="empty-state">Không có task chờ duyệt</div>
+          <div *ngIf="filteredPending().length === 0" class="empty-state" style="padding: 40px 10px; border: 2px dashed #cbd5e1; border-radius: 12px; margin-top: 5px;">
+            Kéo task vào đây để chờ duyệt
+          </div>
           <div *ngFor="let t of filteredPending()" cdkDrag class="task-card" [ngClass]="'priority-' + (t.priority?.toLowerCase() || 'default')" (click)="openTask(t, $event)">
             <button class="btn-delete" (click)="deleteTask(t.id, $event)" title="Xóa Task">
               <mat-icon>delete_outline</mat-icon>
