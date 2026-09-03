@@ -301,7 +301,8 @@ export class KanbanBoardComponent implements OnInit {
         aiResponseText &&
         !aiResponseText.includes('exceeded your current quota') &&
         !aiResponseText.includes('API Gemini') &&
-        !aiResponseText.includes('quota')
+        !aiResponseText.includes('quota') &&
+        !aiResponseText.includes('high demand')
       ) {
         const cleanBody = aiResponseText
           .replace(/\*\*(.*?)\*\*/g, '<strong style="color: #0f172a;">$1</strong>')
@@ -313,11 +314,12 @@ export class KanbanBoardComponent implements OnInit {
         `;
       }
 
+      // Bộ từ khóa mở rộng đầy đủ để bắt trọn vẹn điểm nghẽn
       const issueKeywords = [
-        'lỗi', 'bug', 'fail', 'chậm', 'delay', 'vướng', 'kẹt', 'block', 'sai',
-        'không được', 'giao diện', 'hỏng', 'đơ', 'treo', 'lag', 'crash', 'đứng',
-        'không phản hồi', 'không có phản hồi', 'khó chịu', 'trục trặc', 'vấn đề',
-        'không ăn', 'không gửi', 'nút'
+        'gặp khó', 'khó', 'vướng', 'kẹt', 'lỗi', 'bug', 'fail', 'chậm', 'delay',
+        'block', 'sai', 'không được', 'giao diện', 'hỏng', 'đơ', 'treo', 'lag',
+        'crash', 'đứng', 'không phản hồi', 'khó chịu', 'trục trặc', 'vấn đề',
+        'chưa được', 'chưa xong', 'phức tạp', 'ngữ cảnh', 'cần hỗ trợ', 'phải phù hợp'
       ];
       const issues: string[] = [];
       const plans: string[] = [];
@@ -325,11 +327,17 @@ export class KanbanBoardComponent implements OnInit {
       msgs.forEach(m => {
         const textLower = (m.text || '').toLowerCase().trim();
         const hasIssue = issueKeywords.some(k => textLower.includes(k));
+
+        // Bỏ qua tin nhắn thông báo mẫu ban đầu
+        if (textLower.includes('chào bạn') && textLower.includes('lưu ý hoàn thành đúng hạn')) {
+          return;
+        }
+
         if (hasIssue) {
           const cleanText = m.text.replace(/^(\-|\+|\*)\s*/, '');
           issues.push(cleanText);
         } else if (textLower.includes('nhận') || textLower.includes('xử lý') || textLower.includes('bắt tay') || textLower.includes('làm')) {
-          plans.push('Đã tiếp nhận yêu cầu và đang triển khai xử lý kỹ thuật');
+          plans.push('Đã tiếp nhận yêu cầu và đang triển khai xử lý các tiêu chí kỹ thuật');
         } else if (textLower.includes('lưu ý') || textLower.includes('hạn') || textLower.includes('kế hoạch')) {
           plans.push('Được nhắc nhở bám sát tiến độ hoàn thành theo kế hoạch');
         }
@@ -369,7 +377,7 @@ export class KanbanBoardComponent implements OnInit {
           <div>
             <div style="font-weight: 700; color: #1e293b; margin-bottom: 3px;">🎯 Khuyến nghị hành động:</div>
             <div style="color: #475569; padding-left: 12px; border-left: 2px solid #cbd5e1;">
-              ${hasIssueBlock ? 'Cần kiểm tra và sửa lỗi chức năng/nút giao diện trước khi bàn giao duyệt.' : 'Tiếp tục theo dõi để hoàn thành đúng thời hạn cam kết.'}
+              ${hasIssueBlock ? 'Cần phối hợp với Trưởng nhóm/Quản lý để tháo gỡ điểm nghẽn kỹ thuật nêu trên trước khi bàn giao duyệt.' : 'Tiếp tục bám sát tiến độ để hoàn thành đúng thời hạn cam kết.'}
             </div>
           </div>
         </div>
