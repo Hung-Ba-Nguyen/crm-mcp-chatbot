@@ -68,6 +68,7 @@ export class KanbanBoardComponent implements OnInit {
 
   private chatStore = new Map<string, ChatMessage[]>();
   private readonly KANBAN_CHAT_KEY = 'kanban_user_team_chat_store';
+  private readonly DEMO_STATUS_KEY = 'kanban_demo_task_statuses';
 
   private userMap: Record<string, string> = {
     '6a798756195040ed1af9cf22': 'Lê Văn Kiểm Thử',
@@ -84,6 +85,21 @@ export class KanbanBoardComponent implements OnInit {
 
   private pendingDirectTaskId: string | null = null;
 
+  private getLocalTaskStatuses(): Record<string, string> {
+    try {
+      const raw = localStorage.getItem(this.DEMO_STATUS_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  }
+
+  private setLocalTaskStatus(taskId: string, status: string): void {
+    const current = this.getLocalTaskStatuses();
+    current[taskId] = status;
+    localStorage.setItem(this.DEMO_STATUS_KEY, JSON.stringify(current));
+  }
+
   private getCurrentUserName(): string {
     const rawAuth = localStorage.getItem('current_user')
       || localStorage.getItem('user')
@@ -98,7 +114,7 @@ export class KanbanBoardComponent implements OnInit {
     const token = localStorage.getItem('token') || localStorage.getItem('access_token');
     if (token && token.includes('.')) {
       try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
+        const payload: any = JSON.parse(atob(token.split('.')[1]));
         return payload.name || payload.unique_name || payload.email || 'Tôi';
       } catch { }
     }
@@ -126,9 +142,9 @@ export class KanbanBoardComponent implements OnInit {
   private fetchUsersFromApi(): void {
     const url = `${environment.apiUrl.replace(/\/+$/, '')}/Users`;
     this.http.get<any[]>(url).subscribe({
-      next: (res) => {
+      next: (res: any) => {
         if (Array.isArray(res) && res.length > 0) {
-          res.forEach(u => {
+          res.forEach((u: any) => {
             const id = String(u.id || u.Id || u._id || '').trim();
             const name = String(u.fullName || u.FullName || u.userName || u.UserName || u.name || '').trim();
             if (id && name) {
@@ -189,7 +205,7 @@ export class KanbanBoardComponent implements OnInit {
         const parsed = JSON.parse(saved) as Record<string, any[]>;
         this.chatStore.clear();
         Object.keys(parsed).forEach(taskId => {
-          const msgs = parsed[taskId].map(m => ({ ...m, timestamp: new Date(m.timestamp) }));
+          const msgs = parsed[taskId].map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) }));
           this.chatStore.set(taskId, msgs);
         });
       } catch (e) {
@@ -371,7 +387,7 @@ ${discussionContext}`;
     const url = `${environment.apiUrl.replace(/\/+$/, '')}/Chat`;
 
     this.http.post<any>(url, { Message: prompt, TaskId: taskId }).subscribe({
-      next: (res) => {
+      next: (res: any) => {
         const aiText = res?.data?.answer || res?.data?.Answer || res?.Answer || res?.answer || res?.result || res?.message || res?.response;
         Swal.fire({
           icon: 'success',
@@ -670,14 +686,22 @@ ${discussionContext}`;
 
     const url = `${environment.apiUrl}/Tasks`;
     this.http.get<any>(url).subscribe({
-      next: (res) => {
+      next: (res: any) => {
         let arr: any[] = [];
         if (Array.isArray(res)) arr = res;
         else if (Array.isArray(res.tasks)) arr = res.tasks;
         else if (Array.isArray(res.Tasks)) arr = res.Tasks;
         else if (res?.data && Array.isArray(res.data.tasks)) arr = res.data.tasks;
 
-        const mapped = arr.map(t => this.normalizeTask(t));
+        const localOverrides = this.getLocalTaskStatuses();
+
+        const mapped = arr.map(t => {
+          const item = this.normalizeTask(t);
+          if (localOverrides[item.id]) {
+            item.status = localOverrides[item.id];
+          }
+          return item;
+        });
 
         const getStatusLower = (statusVal: any): string => {
           const s = String(statusVal ?? '').toLowerCase();
@@ -707,10 +731,39 @@ ${discussionContext}`;
 
         try { this.cdr.detectChanges(); } catch { }
       },
-      error: (err) => {
+      error: (err: any) => {
         this.error.set(err?.message ?? 'Không thể tải danh sách task');
         this.isLoading.set(false);
       }
+    });
+  }
+
+  submitForApproval(task: KanbanTask, event?: Event): void {
+    if (event) {
+      try { event.stopPropagation(); event.preventDefault(); } catch { }
+    }
+
+    task.status = 'PendingApproval';
+    this.setLocalTaskStatus(task.id, 'PendingApproval');
+
+    this.allInProgress.update(list => list.filter(t => t.id !== task.id));
+    this.allTodo.update(list => list.filter(t => t.id !== task.id));
+    this.allPending.update(list => [task, ...list]);
+    this.applyFilter(this.searchTerm);
+
+    Swal.fire({
+      toast: true,
+      position: 'top-end',
+      icon: 'info',
+      title: `Task "${task.title}" đã chuyển sang Chờ duyệt!`,
+      text: 'Thông báo Realtime (SignalR): Có công việc mới cần phê duyệt',
+      showConfirmButton: false,
+      timer: 3500,
+      timerProgressBar: true
+    });
+
+    this.taskRpc.updateTaskStatus(task.id, 'PendingApproval').subscribe({
+      error: () => console.log('[Demo] Mock offline sync status')
     });
   }
 
@@ -718,9 +771,28 @@ ${discussionContext}`;
     if (event.previousContainer === event.container) {
       moveItemInArray(event.container.data, event.previousIndex, event.currentIndex);
     } else {
+      const moved = event.previousContainer.data[event.previousIndex];
       transferArrayItem(event.previousContainer.data, event.container.data, event.previousIndex, event.currentIndex);
-      const moved = event.container.data[event.currentIndex];
+
       if (moved && moved.id) {
+        moved.status = targetStatus;
+        this.setLocalTaskStatus(moved.id, targetStatus);
+
+        if (targetStatus === 'PendingApproval') {
+          Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'info',
+            title: `Task "${moved.title}" đã chuyển sang Chờ duyệt!`,
+            text: 'Thông báo Realtime (SignalR): Có công việc mới cần phê duyệt',
+            showConfirmButton: false,
+            timer: 3500,
+            timerProgressBar: true
+          });
+        }
+
+        this.applyFilter(this.searchTerm);
+
         this.taskRpc.updateTaskStatus(moved.id, targetStatus).subscribe({
           next: () => this.loadTasks(),
           error: () => this.loadTasks()
