@@ -13,4 +13,8 @@ public class MongoDbSettings
     public string UsersCollectionName { get; set; } = "users";
 
     public string TaskChatMessagesCollectionName { get; set; } = "task_chat_messages";
+
+    public string ChatSessionsCollectionName { get; set; } = "chat_sessions";
+
+    public string ChatMessagesCollectionName { get; set; } = "chat_messages";
 }
