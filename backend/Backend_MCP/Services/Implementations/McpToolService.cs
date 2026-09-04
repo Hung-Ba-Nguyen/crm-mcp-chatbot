@@ -11,17 +11,20 @@ public class McpToolService : IMcpToolService
     private readonly ITaskChatService _taskChatService;
     private readonly IUserService _userService;
     private readonly ITaskService _taskService;
+    private readonly IChatService _chatService;
 
     public McpToolService(
         IDepartmentService departmentService,
         ITaskChatService taskChatService,
         IUserService userService,
-        ITaskService taskService)
+        ITaskService taskService,
+        IChatService chatService)
     {
         _departmentService = departmentService;
         _taskChatService = taskChatService;
         _userService = userService;
         _taskService = taskService;
+        _chatService = chatService;
     }
 
     public async Task<JsonRpcResponse> HandleAsync(JsonRpcRequest request, CancellationToken cancellationToken = default)
@@ -38,6 +41,8 @@ public class McpToolService : IMcpToolService
                 "update_task_status" => await HandleUpdateTaskStatusAsync(request, cancellationToken),
                 "get_overdue_tasks" => await HandleOverdueTasksAsync(request, cancellationToken),
                 "get_workload_summary" => await HandleWorkloadSummaryAsync(request, cancellationToken),
+                "get_user_chat_sessions" => await HandleUserChatSessionsAsync(request, cancellationToken),
+                "get_chat_history_by_session" => await HandleChatHistoryBySessionAsync(request, cancellationToken),
                 _ => JsonRpcResponse.Failure(-32601, $"Method not found: {request.Method}", request.Id)
             };
         }
@@ -148,6 +153,48 @@ public class McpToolService : IMcpToolService
         }
 
         return JsonRpcResponse.Success(await _taskService.GetWorkloadSummaryAsync(payload, cancellationToken), request.Id);
+    }
+
+    private async Task<JsonRpcResponse> HandleUserChatSessionsAsync(JsonRpcRequest request, CancellationToken cancellationToken)
+    {
+        if (request.Parameters is null || request.Parameters.Value.ValueKind == JsonValueKind.Null)
+        {
+            return JsonRpcResponse.Failure(-32602, "Invalid params", request.Id);
+        }
+
+        var parameters = request.Parameters.Value;
+        if (!parameters.TryGetProperty("userId", out var userIdProp) || string.IsNullOrWhiteSpace(userIdProp.GetString()))
+        {
+            return JsonRpcResponse.Failure(-32602, "Invalid params: missing userId", request.Id);
+        }
+
+        var page = parameters.TryGetProperty("page", out var pageProp) ? Math.Max(1, pageProp.GetInt32()) : 1;
+        var pageSize = parameters.TryGetProperty("pageSize", out var pageSizeProp) ? Math.Clamp(pageSizeProp.GetInt32(), 1, 100) : 20;
+
+        return JsonRpcResponse.Success(await _chatService.GetSessionsByUserIdAsync(userIdProp.GetString()!, page, pageSize, cancellationToken), request.Id);
+    }
+
+    private async Task<JsonRpcResponse> HandleChatHistoryBySessionAsync(JsonRpcRequest request, CancellationToken cancellationToken)
+    {
+        if (request.Parameters is null || request.Parameters.Value.ValueKind == JsonValueKind.Null)
+        {
+            return JsonRpcResponse.Failure(-32602, "Invalid params", request.Id);
+        }
+
+        var parameters = request.Parameters.Value;
+        if (!parameters.TryGetProperty("sessionId", out var sessionIdProp) || string.IsNullOrWhiteSpace(sessionIdProp.GetString()))
+        {
+            return JsonRpcResponse.Failure(-32602, "Invalid params: missing sessionId", request.Id);
+        }
+
+        if (!parameters.TryGetProperty("userId", out var userIdProp) || string.IsNullOrWhiteSpace(userIdProp.GetString()))
+        {
+            return JsonRpcResponse.Failure(-32602, "Invalid params: missing userId", request.Id);
+        }
+
+        var limit = parameters.TryGetProperty("limit", out var limitProp) ? Math.Max(1, limitProp.GetInt32()) : 50;
+
+        return JsonRpcResponse.Success(await _chatService.GetMessagesBySessionIdAsync(userIdProp.GetString()!, sessionIdProp.GetString()!, limit, cancellationToken), request.Id);
     }
 
     public object GetAvailableTools()
@@ -274,6 +321,38 @@ public class McpToolService : IMcpToolService
                                 departmentId = new { type = "string", description = "ID phòng ban để lọc task quá hạn" },
                                 limit = new { type = "integer", description = "Giới hạn số lượng task trả về" }
                             }
+                        }
+                    },
+                    new
+                    {
+                        name = "get_user_chat_sessions",
+                        description = "Lấy danh sách các cuộc trò chuyện gần đây của một user theo userId, hỗ trợ phân trang.",
+                        parameters = new
+                        {
+                            type = "object",
+                            properties = new
+                            {
+                                userId = new { type = "string", description = "ID người dùng cần xem danh sách cuộc trò chuyện" },
+                                page = new { type = "integer", description = "Số trang, bắt đầu từ 1" },
+                                pageSize = new { type = "integer", description = "Số bản ghi trên mỗi trang, tối đa 100" }
+                            },
+                            required = new[] { "userId" }
+                        }
+                    },
+                    new
+                    {
+                        name = "get_chat_history_by_session",
+                        description = "Lấy chi tiết lịch sử tin nhắn của một session cụ thể, có thể giới hạn số lượng message trả về.",
+                        parameters = new
+                        {
+                            type = "object",
+                            properties = new
+                            {
+                                sessionId = new { type = "string", description = "ID session cần xem lịch sử trò chuyện" },
+                                userId = new { type = "string", description = "ID người dùng sở hữu session" },
+                                limit = new { type = "integer", description = "Giới hạn số tin nhắn gần nhất trả về" }
+                            },
+                            required = new[] { "sessionId", "userId" }
                         }
                     },
                     new

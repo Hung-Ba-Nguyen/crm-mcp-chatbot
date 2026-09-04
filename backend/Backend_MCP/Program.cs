@@ -49,6 +49,7 @@ builder.Services.AddScoped<ITaskRepository, MongoTaskRepository>();
 builder.Services.AddScoped<IDepartmentRepository, MongoDepartmentRepository>();
 builder.Services.AddScoped<ITaskChatMessageRepository, MongoTaskChatMessageRepository>();
 builder.Services.AddScoped<IUserRepository, MongoUserRepository>();
+builder.Services.AddScoped<IChatRepository, MongoChatRepository>();
 
 // Services
 builder.Services.AddScoped<ITaskService, TaskService>();
@@ -58,6 +59,7 @@ builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IMcpToolService, McpToolService>();
 builder.Services.AddScoped<IAiChatService, AiChatService>();
+builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddHttpClient<IAiChatService, AiChatService>();
 
 // JWT Authentication Configuration
@@ -141,6 +143,8 @@ using (var scope = app.Services.CreateScope())
     var database = scope.ServiceProvider.GetRequiredService<IMongoDatabase>();
     var mongoDbOptions = scope.ServiceProvider.GetRequiredService<IOptions<MongoDbSettings>>();
     await DataSeeder.SeedAsync(database, mongoDbOptions);
+    var chatRepository = scope.ServiceProvider.GetRequiredService<IChatRepository>();
+    await chatRepository.EnsureIndexesAsync();
 }
 
 if (app.Environment.IsDevelopment())

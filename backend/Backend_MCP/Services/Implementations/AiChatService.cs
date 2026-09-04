@@ -3,23 +3,39 @@ namespace Backend_MCP.Services.Implementations;
 public class AiChatService : IAiChatService
 {
     private readonly IMcpToolService _mcpToolService;
+    private readonly IChatService _chatService;
     private readonly HttpClient _httpClient;
     private readonly IConfiguration _configuration;
 
     public AiChatService(
-        IMcpToolService mcpToolService, 
-        HttpClient httpClient, 
+        IMcpToolService mcpToolService,
+        IChatService chatService,
+        HttpClient httpClient,
         IConfiguration configuration)
     {
         _mcpToolService = mcpToolService;
+        _chatService = chatService;
         _httpClient = httpClient;
         _configuration = configuration;
     }
 
     public async Task<ChatResponse> AskAsync(AskAiRequest request, CancellationToken cancellationToken = default)
     {
+        if (request is null)
+        {
+            throw new ArgumentNullException(nameof(request));
+        }
+
         var apiKey = _configuration["Gemini:ApiKey"] ?? string.Empty;
         var apiUrl = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key={apiKey}";
+
+        var session = await _chatService.EnsureSessionAsync(request.UserId, request.SessionId, request.SessionTitle, cancellationToken);
+        await _chatService.SaveUserMessageAsync(request.UserId, session.SessionId, request.Message, cancellationToken);
+
+        var contextMessages = await _chatService.GetContextMessagesAsync(session.SessionId, 20, cancellationToken);
+        var contextText = contextMessages.Count == 0
+            ? string.Empty
+            : string.Join("\n", contextMessages.Select(message => $"[{message.Sender}] {message.Content}"));
 
         var contextPrompt = $"User Id hiện tại đang gọi hệ thống: {request.UserId}.";
         if (!string.IsNullOrWhiteSpace(request.TaskId))
@@ -30,10 +46,13 @@ public class AiChatService : IAiChatService
         {
             contextPrompt += $" Context DepartmentId: {request.DepartmentId}.";
         }
+        if (!string.IsNullOrWhiteSpace(contextText))
+        {
+            contextPrompt += $"\nLịch sử trò chuyện gần đây:\n{contextText}";
+        }
 
         var toolsDeclaration = _mcpToolService.GetAvailableTools();
 
-        // Maintain a conversation contents list to support multiple tool call rounds
         var contentsList = new List<object>
         {
             new
@@ -44,8 +63,8 @@ public class AiChatService : IAiChatService
         };
 
         string? lastFunctionName = null;
+        var toolCallLogs = new List<McpToolCallLog>();
 
-        // Loop to allow multiple function-call rounds (max 5 to avoid infinite loops)
         const int maxRounds = 5;
         for (int round = 0; round < maxRounds; round++)
         {
@@ -61,7 +80,6 @@ public class AiChatService : IAiChatService
             using var doc = JsonDocument.Parse(responseJson);
             var root = doc.RootElement;
 
-            // Check if model wants to call a tool
             if (root.TryGetProperty("candidates", out var candidates) &&
                 candidates.EnumerateArray().Any() &&
                 candidates[0].TryGetProperty("content", out var content) &&
@@ -75,7 +93,6 @@ public class AiChatService : IAiChatService
 
                     if (string.IsNullOrWhiteSpace(functionName))
                     {
-                        // malformed function call; break and return message
                         break;
                     }
 
@@ -89,8 +106,14 @@ public class AiChatService : IAiChatService
                     };
 
                     var mcpResponse = await _mcpToolService.HandleAsync(mcpRequest, cancellationToken);
+                    toolCallLogs.Add(new McpToolCallLog
+                    {
+                        ToolName = functionName,
+                        Arguments = args.GetRawText(),
+                        ExecutedAt = DateTime.UtcNow,
+                        Result = mcpResponse.Result is null ? null : JsonSerializer.Serialize(mcpResponse.Result)
+                    });
 
-                    // Clone parts so the JsonElement does not reference the disposed JsonDocument
                     JsonElement partsClone;
                     try
                     {
@@ -98,12 +121,10 @@ public class AiChatService : IAiChatService
                     }
                     catch
                     {
-                        // Fallback to cloning via Parse if deserialize fails
                         using var tmpDoc = JsonDocument.Parse(parts.GetRawText());
                         partsClone = tmpDoc.RootElement.Clone();
                     }
 
-                    // Append the model's function call parts and then the function response to contentsList
                     contentsList.Add(new { role = "model", parts = partsClone });
                     contentsList.Add(new
                     {
@@ -115,35 +136,37 @@ public class AiChatService : IAiChatService
                                 functionResponse = new
                                 {
                                     name = functionName,
-                                    // Wrap result in an object to ensure JSON object type (Gemini expects object for function responses)
                                     response = new { data = mcpResponse.Result }
                                 }
                             }
                         }
                     });
 
-                    // continue to next round so model can consume the functionResponse
                     continue;
                 }
             }
 
-            // If no function call requested, extract final text and return
             var finalAnswer = ExtractTextFromGeminiResponse(root);
-            return new ChatResponse
+            var responsePayload = new ChatResponse
             {
                 Answer = finalAnswer,
                 ToolUsed = lastFunctionName,
                 ProcessedAt = DateTime.UtcNow
             };
+
+            await _chatService.SaveAssistantMessageAsync(request.UserId, session.SessionId, responsePayload.Answer, toolCallLogs, cancellationToken);
+            return responsePayload;
         }
 
-        // If loop ends without returning, model did not provide a final text
-        return new ChatResponse
+        var fallbackPayload = new ChatResponse
         {
             Answer = "AI did not return a final textual answer after multiple tool calls.",
             ToolUsed = null,
             ProcessedAt = DateTime.UtcNow
         };
+
+        await _chatService.SaveAssistantMessageAsync(request.UserId, session.SessionId, fallbackPayload.Answer, toolCallLogs, cancellationToken);
+        return fallbackPayload;
     }
 
     private Task<HttpResponseMessage> SendToGeminiAsync(string url, object body, CancellationToken cancellationToken)
